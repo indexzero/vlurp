@@ -137,3 +137,11 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# slop & scratch
+.slop
+.scratch
+slop/
+slop/*
+scratch/
+scratch/*
