@@ -145,3 +145,7 @@ slop/
 slop/*
 scratch/
 scratch/*
+output/
+SPEC*.md
+PLAN*.md
+.claude/
