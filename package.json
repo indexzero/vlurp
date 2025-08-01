@@ -1,0 +1,41 @@
+{
+  "name": "vlurp",
+  "version": "1.0.0",
+  "description": "A fun CLI tool to quickly clone GitHub repositories and gists",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "vlurp": "./bin/vlurp"
+  },
+  "scripts": {
+    "test": "node --test",
+    "lint": "xo",
+    "lint:fix": "xo --fix"
+  },
+  "keywords": [
+    "cli",
+    "github",
+    "clone",
+    "repository",
+    "gist"
+  ],
+  "author": "Charlie Robbins <npm@charlie.dev>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "pnpm@10.14.0",
+  "dependencies": {
+    "hosted-git-info": "^9.0.0",
+    "ink": "^6.1.0",
+    "ink-spinner": "^5.0.0",
+    "jackspeak": "^4.1.1",
+    "minimatch": "^10.0.3",
+    "react": "^19.1.1",
+    "tar": "^7.4.3",
+    "undici": "^7.13.0"
+  },
+  "devDependencies": {
+    "xo": "^1.2.1"
+  }
+}
