@@ -2,7 +2,6 @@ import { resolve, join } from 'node:path';
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-
 import { parseSource } from '../parser.js';
 import { validateUrl } from '../validator.js';
 import { cloneRepository } from '../cloner.js';

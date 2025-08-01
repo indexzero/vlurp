@@ -8,7 +8,9 @@
     "vlurp": "./bin/vlurp"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "lint": "xo",
+    "lint:fix": "xo --fix"
   },
   "keywords": [
     "cli",
@@ -32,5 +34,8 @@
     "react": "^19.1.1",
     "tar": "^7.4.3",
     "undici": "^7.13.0"
+  },
+  "devDependencies": {
+    "xo": "^1.2.1"
   }
 }

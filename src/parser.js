@@ -4,7 +4,7 @@ export class Parser {
   parse(source) {
     // Try to parse with hosted-git-info
     const info = hostedGitInfo.fromUrl(source);
-    
+
     if (info && info.type === 'github') {
       // Handle both regular repos and gists
       const isGist = source.includes('gist.github.com');

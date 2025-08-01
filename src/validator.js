@@ -10,7 +10,7 @@ export class Validator {
     }
 
     const info = hostedGitInfo.fromUrl(url);
-    
+
     if (info && info.type === 'github') {
       const isGist = url.includes('gist.github.com');
       return {

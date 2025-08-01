@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
+import { join } from 'node:path';
 import { Validator, Parser } from '../src/index.js';
 import { resolveTargetPath } from '../src/commands/clone.js';
-import { join } from 'node:path';
 
 describe('Validator', () => {
   const validator = new Validator();
@@ -122,8 +122,7 @@ describe('Filter functionality', () => {
     ];
 
     const filtered = testFiles.filter(file =>
-      filters.some(pattern => minimatch(file, pattern, { matchBase: true }))
-    );
+      filters.some(pattern => minimatch(file, pattern, { matchBase: true })));
 
     assert.deepEqual(filtered, [
       'README.md',

@@ -1,13 +1,12 @@
-import { request } from 'undici';
-import { extract } from 'tar';
-import { minimatch } from 'minimatch';
 import { access, mkdir, rename } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { constants } from 'node:fs';
+import { constants, createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { randomBytes } from 'node:crypto';
+import { minimatch } from 'minimatch';
+import { extract } from 'tar';
+import { request } from 'undici';
 
 export class Cloner {
   async #ensureDirectory(targetPath) {
@@ -63,7 +62,7 @@ export class Cloner {
 
     // Add filter if patterns are provided
     if (filters && filters.length > 0) {
-      extractOptions.filter = (path) => {
+      extractOptions.filter = path => {
         // Strip leading slash if present (tar sometimes includes it)
         let normalizedPath = path.startsWith('/') ? path.slice(1) : path;
 
@@ -75,11 +74,10 @@ export class Cloner {
         }
 
         // Check if the path matches any of the filter patterns
-        const matches = filters.some(pattern => {
+        const matches = filters.some(pattern =>
           // For debugging: uncomment to see what's being filtered
           // console.log(`Checking ${normalizedPath} against ${pattern}`);
-          return minimatch(normalizedPath, pattern, { matchBase: true, dot: true });
-        });
+          minimatch(normalizedPath, pattern, { matchBase: true, dot: true }));
 
         return matches;
       };
