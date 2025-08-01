@@ -28,7 +28,7 @@ vlurp cool-repo/has-agents -d ~/projects
 
 # Clone using a GitHub URL
 vlurp https://github.com/whoever/cool-configs
-# → Creates ./nodejs/node
+# → Creates ./whoever/cool-configs
 
 # Clone a GitHub Gist
 vlurp https://gist.github.com/user/abc123def456
