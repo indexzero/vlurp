@@ -7,6 +7,8 @@ import { randomBytes } from 'node:crypto';
 import { minimatch } from 'minimatch';
 import { extract } from 'tar';
 import { request } from 'undici';
+import { cp, rm } from 'node:fs/promises';
+
 
 export class Fetcher {
   async #ensureDirectory(targetPath) {
@@ -86,7 +88,9 @@ export class Fetcher {
     await extract(extractOptions);
 
     // Move to final location
-    await rename(tempExtractDir, targetPath);
+    await cp(tempExtractDir, targetPath, { recursive: true });
+    await rm(tempExtractDir, { recursive: true, force: true });
+
   }
 
   async fetch(tarballUrl, targetPath, filters = []) {
