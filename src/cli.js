@@ -63,6 +63,18 @@ const rootDir = values.d;
 const filters = values.filter;
 const {force} = values;
 
-render(React.createElement(FetchCommand, {
-  source, rootDir, filters, force
-}));
+// Enable raw mode support
+if (process.stdin.setRawMode) {
+  render(React.createElement(FetchCommand, {
+    source, rootDir, filters, force
+  }));
+} else {
+  // Fallback for non-TTY environments
+  render(React.createElement(FetchCommand, {
+    source, rootDir, filters, force
+  }), {
+    stdin: process.stdin,
+    stdout: process.stdout,
+    exitOnCtrlC: false
+  });
+}

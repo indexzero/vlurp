@@ -1,11 +1,12 @@
 import process from 'node:process';
 import { resolve, join } from 'node:path';
 import React, { useState, useEffect } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useApp } from 'ink';
 import Spinner from 'ink-spinner';
+import { ConfirmInput } from '@inkjs/ui';
 import { parseSource } from '../parser.js';
 import { validateUrl } from '../validator.js';
-import { fetchRepository } from '../fetcher.js';
+import { fetchRepository, checkTargetDirectory } from '../fetcher.js';
 import { buildTreeString } from '../tree.js';
 
 export function FetchCommand({ source, rootDir, filters, force }) {
@@ -13,9 +14,38 @@ export function FetchCommand({ source, rootDir, filters, force }) {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [treeOutput, setTreeOutput] = useState(null);
+  const [existingDir, setExistingDir] = useState(null);
+  const { exit } = useApp();
+
+  async function performFetch(skipCheck = false) {
+    try {
+      const parsed = existingDir?.parsed || parseSource(source);
+      const targetPath = existingDir?.targetPath || resolveTargetPath(parsed.user, parsed.repo, rootDir);
+
+      // Vlurp the repository
+      setStatus('vlurping');
+      const { fileCount } = await fetchRepository(parsed.tarballUrl, targetPath, filters, { force: true });
+
+      // Generate tree output
+      const tree = await buildTreeString(targetPath);
+      setTreeOutput(tree);
+
+      setResult({
+        user: parsed.user,
+        repo: parsed.repo,
+        path: targetPath,
+        filterCount: filters.length,
+        fileCount
+      });
+      setStatus('complete');
+    } catch (err) {
+      setError(err.message);
+      setStatus('error');
+    }
+  }
 
   useEffect(() => {
-    async function performFetch() {
+    async function checkAndFetch() {
       try {
         // Parse the source input
         setStatus('locating');
@@ -32,30 +62,52 @@ export function FetchCommand({ source, rootDir, filters, force }) {
         // Resolve the target directory
         const targetPath = resolveTargetPath(parsed.user, parsed.repo, rootDir);
 
-        // Vlurp the repository
-        setStatus('vlurping');
-        const { fileCount } = await fetchRepository(parsed.tarballUrl, targetPath, filters, { force });
+        // Check if directory exists
+        if (!force) {
+          const dirCheck = await checkTargetDirectory(targetPath);
+          if (dirCheck.exists) {
+            setExistingDir({ parsed, targetPath, fileCount: dirCheck.fileCount });
+            setStatus('confirming');
+            return;
+          }
+        }
 
-        // Generate tree output
-        const tree = await buildTreeString(targetPath);
-        setTreeOutput(tree);
-
-        setResult({
-          user: parsed.user,
-          repo: parsed.repo,
-          path: targetPath,
-          filterCount: filters.length,
-          fileCount
-        });
-        setStatus('complete');
+        // Directory doesn't exist or force is true, proceed directly
+        await performFetch();
       } catch (err) {
         setError(err.message);
         setStatus('error');
       }
     }
 
-    performFetch();
+    checkAndFetch();
   }, [source, rootDir, filters, force]);
+
+  if (status === 'confirming') {
+    return React.createElement(
+      Box,
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'yellow' }, `Warning: Directory ${existingDir.targetPath} already exists with ${existingDir.fileCount} files.`),
+      React.createElement(Text, null, 'Continuing will overwrite existing files.'),
+      React.createElement(Box, { marginTop: 1 },
+        React.createElement(ConfirmInput, {
+          onConfirm: () => performFetch(true),
+          onCancel: () => {
+            setStatus('cancelled');
+            setTimeout(() => exit(), 100);
+          }
+        })
+      )
+    );
+  }
+
+  if (status === 'cancelled') {
+    return React.createElement(
+      Box,
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'yellow' }, 'vlurping cancelled.')
+    );
+  }
 
   if (status === 'error') {
     return React.createElement(
@@ -85,7 +137,7 @@ export function FetchCommand({ source, rootDir, filters, force }) {
       null,
       React.createElement(Spinner, { type: 'dots' })
     ),
-    React.createElement(Text, null, ` ${status === 'parsing' ? 'Parsing input...' : 'vlurping repository...'}`)
+    React.createElement(Text, null, ` ${status === 'locating' ? 'Locating repository...' : 'vlurping repository...'}`)
   );
 }
 

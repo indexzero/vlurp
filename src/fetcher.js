@@ -6,8 +6,6 @@ import { constants, createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { tmpdir } from 'node:os';
 import { randomBytes } from 'node:crypto';
-import { createInterface } from 'node:readline';
-import process from 'node:process';
 import { extract } from 'tar';
 import { request } from 'undici';
 import { glob } from 'glob';
@@ -120,38 +118,19 @@ export class Fetcher {
     }
   }
 
-  async #promptUser(question) {
-    const rl = createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
+  async checkDirectory(targetPath) {
+    const exists = await this.#checkIfExists(targetPath);
+    if (!exists) {
+      return { exists: false, fileCount: 0 };
+    }
 
-    return new Promise(resolve => {
-      rl.question(question, answer => {
-        rl.close();
-        resolve(answer);
-      });
-    });
+    const fileCount = await this.countFiles(targetPath);
+    return { exists: true, fileCount };
   }
 
   async fetch(tarballUrl, targetPath, filters = [], options = {}) {
-    // Check if target already exists
+    // If directory exists, remove it (caller should have already confirmed)
     if (await this.#checkIfExists(targetPath)) {
-      if (!options.force) {
-        const fileCount = await this.countFiles(targetPath);
-        // For now, we'll keep these console.logs as they happen before Ink takes over
-        // In a more complete solution, we'd handle this in the Ink component
-        console.log(`\nWarning: Directory ${targetPath} already exists with ${fileCount} files.`);
-        console.log('Continuing will overwrite existing files.');
-
-        const answer = await this.#promptUser('Continue? (y/N): ');
-        if (answer.toLowerCase() !== 'y') {
-          console.log('vlurping cancelled.');
-          process.exit(0);
-        }
-      }
-
-      // Remove existing directory before proceeding
       await rm(targetPath, { recursive: true, force: true });
     }
 
@@ -170,6 +149,11 @@ export class Fetcher {
       }
     }
   }
+}
+
+export async function checkTargetDirectory(targetPath) {
+  const fetcher = new Fetcher();
+  return fetcher.checkDirectory(targetPath);
 }
 
 export async function fetchRepository(tarballUrl, targetPath, filters = [], options = {}) {

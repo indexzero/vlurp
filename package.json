@@ -29,6 +29,7 @@
   },
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
+    "@inkjs/ui": "^2.0.0",
     "archy": "^1.0.0",
     "glob": "^11.0.3",
     "hosted-git-info": "^9.0.0",
