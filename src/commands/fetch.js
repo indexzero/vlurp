@@ -1,21 +1,22 @@
+import process from 'node:process';
 import { resolve, join } from 'node:path';
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import { parseSource } from '../parser.js';
 import { validateUrl } from '../validator.js';
-import { cloneRepository } from '../cloner.js';
+import { fetchRepository } from '../fetcher.js';
 
-export function CloneCommand({ source, rootDir, filters }) {
-  const [status, setStatus] = useState('parsing');
+export function FetchCommand({ source, rootDir, filters }) {
+  const [status, setStatus] = useState('locating');
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
 
   useEffect(() => {
-    async function performClone() {
+    async function performFetch() {
       try {
         // Parse the source input
-        setStatus('parsing');
+        setStatus('locating');
         const parsed = parseSource(source);
 
         // Validate if it's a URL
@@ -29,9 +30,9 @@ export function CloneCommand({ source, rootDir, filters }) {
         // Resolve the target directory
         const targetPath = resolveTargetPath(parsed.user, parsed.repo, rootDir);
 
-        // Clone the repository
-        setStatus('cloning');
-        await cloneRepository(parsed.tarballUrl, targetPath, filters);
+        // Vlurp the repository
+        setStatus('vlurping');
+        await fetchRepository(parsed.tarballUrl, targetPath, filters);
 
         setResult({
           user: parsed.user,
@@ -46,7 +47,7 @@ export function CloneCommand({ source, rootDir, filters }) {
       }
     }
 
-    performClone();
+    performFetch();
   }, [source, rootDir, filters]);
 
   if (status === 'error') {

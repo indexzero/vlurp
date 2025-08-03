@@ -1,47 +1,48 @@
+import process from 'node:process';
 import { jack } from 'jackspeak';
 import { render } from 'ink';
 import React from 'react';
-import { CloneCommand } from './commands/clone.js';
+import { FetchCommand } from './commands/fetch.js';
 
 const j = jack({
-  usage: 'vlurp [source] [options]',
+  usage: 'vlurp [source] [options]'
 })
-  .description('A fun CLI tool to quickly clone GitHub repositories and gists')
+  .description('A fun CLI tool to quickly fetch GitHub repositories and gists')
   .opt({
     d: {
       description: 'Root directory for cloning',
-      short: 'd',
-    },
+      short: 'd'
+    }
   })
   .optList({
     filter: {
       description: 'Glob patterns to filter files (defaults to .claude/** and CLAUDE.md)',
       short: 'f',
-      default: ['.claude/**', 'CLAUDE.md'],
-    },
+      default: ['.claude/**', 'CLAUDE.md']
+    }
   })
   .flag({
     help: {
       description: 'Show this help message',
-      short: 'h',
-    },
+      short: 'h'
+    }
   });
 
 const { values, positionals } = j.parse();
 
 if (values.help) {
-  console.log(`vlurp - A fun CLI tool to quickly clone GitHub repositories and gists
+  console.log(`vlurp - A fun CLI tool to quickly fetch GitHub repositories and gists
 
 Usage:
-  vlurp <user>/<repo>                    Clone to ./<user>/<repo>
-  vlurp <user>/<repo> -d <root>         Clone to <root>/<user>/<repo>
-  vlurp <url>                           Clone GitHub/Gist URL to ./<user>/<repo>
-  vlurp <url> -d <root>                 Clone to <root>/<user>/<repo>
+  vlurp <user>/<repo>                    Fetch to ./<user>/<repo>
+  vlurp <user>/<repo> -d <root>         Fetch to <root>/<user>/<repo>
+  vlurp <url>                           Fetch GitHub/Gist URL to ./<user>/<repo>
+  vlurp <url> -d <root>                 Fetch to <root>/<user>/<repo>
 
 Examples:
-  vlurp facebook/react                   Clone with default filters (.claude/**, CLAUDE.md)
-  vlurp nodejs/node --filter "*.js"      Clone only JavaScript files
-  vlurp user/repo -f "src/**" -f "*.md"  Clone src folder and markdown files
+  vlurp facebook/react                   Fetch with default filters (.claude/**, CLAUDE.md)
+  vlurp nodejs/node --filter "*.js"      Fetch only JavaScript files
+  vlurp user/repo -f "src/**" -f "*.md"  Fetch src folder and markdown files
 
 Options:
 ${j.usage()}`);
@@ -57,4 +58,4 @@ const source = positionals[0];
 const rootDir = values.d;
 const filters = values.filter;
 
-render(React.createElement(CloneCommand, { source, rootDir, filters }));
+render(React.createElement(FetchCommand, { source, rootDir, filters }));

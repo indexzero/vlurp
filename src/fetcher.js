@@ -8,7 +8,7 @@ import { minimatch } from 'minimatch';
 import { extract } from 'tar';
 import { request } from 'undici';
 
-export class Cloner {
+export class Fetcher {
   async #ensureDirectory(targetPath) {
     const dir = dirname(targetPath);
     try {
@@ -89,7 +89,7 @@ export class Cloner {
     await rename(tempExtractDir, targetPath);
   }
 
-  async clone(tarballUrl, targetPath, filters = []) {
+  async fetch(tarballUrl, targetPath, filters = []) {
     // Check if target already exists
     if (await this.#checkIfExists(targetPath)) {
       throw new Error(`Directory already exists: ${targetPath}`);
@@ -106,13 +106,13 @@ export class Cloner {
       // Clean up temp file
       if (tempTarball) {
         const { unlink } = await import('node:fs/promises');
-        await unlink(tempTarball).catch(() => {});
+        await unlink(tempTarball, { force: true });
       }
     }
   }
 }
 
-export async function cloneRepository(tarballUrl, targetPath, filters = []) {
-  const cloner = new Cloner();
-  return await cloner.clone(tarballUrl, targetPath, filters);
+export async function fetchRepository(tarballUrl, targetPath, filters = []) {
+  const fetcher = new Fetcher();
+  return await fetcher.fetch(tarballUrl, targetPath, filters);
 }

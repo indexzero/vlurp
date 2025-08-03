@@ -1,7 +1,7 @@
 {
   "name": "vlurp",
   "version": "1.0.0",
-  "description": "A fun CLI tool to quickly clone GitHub repositories and gists",
+  "description": "A fun CLI tool to quickly slurp files from GitHub repositories and gists",
   "type": "module",
   "main": "src/index.js",
   "bin": {
@@ -16,6 +16,8 @@
     "cli",
     "github",
     "clone",
+    "download",
+    "fetch",
     "repository",
     "gist"
   ],
