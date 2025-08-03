@@ -1,8 +1,9 @@
+import process from 'node:process';
 import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { join } from 'node:path';
 import { Validator, Parser } from '../src/index.js';
-import { resolveTargetPath } from '../src/commands/clone.js';
+import { resolveTargetPath } from '../src/commands/fetch.js';
 
 describe('Validator', () => {
   const validator = new Validator();

@@ -1,6 +1,6 @@
 # `vlurp === (vibes && slurp) // true`
 
-A fun CLI tool to quickly clone GitHub repositories and gists without using git.
+A fun CLI tool to quickly slurp vibe(ish) files from GitHub repositories and gists.
 
 ## Installation
 
@@ -18,19 +18,19 @@ npx vlurp <user>/<repo>
 ## Usage
 
 ```sh
-# Clone a repository using user/repo format
+# Vlurp a repository using user/repo format
 vlurp cool-repo/has-agents
 # → Creates ./cool-repo/has-agents
 
-# Clone to a specific directory
+# Vlurp to a specific directory
 vlurp cool-repo/has-agents -d ~/projects
 # → Creates ~/projects/cool-repo/has-agents
 
-# Clone using a GitHub URL
+# Vlurp using a GitHub URL
 vlurp https://github.com/whoever/cool-configs
 # → Creates ./whoever/cool-configs
 
-# Clone a GitHub Gist
+# Vlurp a GitHub Gist
 vlurp https://gist.github.com/user/abc123def456
 # → Creates ./user/abc123def456
 
@@ -40,10 +40,10 @@ vlurp --help
 # Filter files (default: .claude/** and CLAUDE.md)
 vlurp cool-repo/has-agents --filter "*.ts" --filter "*.tsx"
 
-# Download only specific directories
+# Vlurp only specific directories
 vlurp whoever/cool-configs --filter "lib/**" --filter "doc/**"
 
-# Download only markdown files
+# Vlurp only markdown files
 vlurp user/repo --filter "*.md"
 ```
 
@@ -51,20 +51,16 @@ vlurp user/repo --filter "*.md"
 
 - 🚀 Fast - Downloads tarballs instead of cloning entire git history
 - 📦 Lightweight - Minimal dependencies
-- 🎨 Beautiful - Clean output with progress indicators
-- 🔒 Secure - Only works with github.com and gist.github.com
+- 🎨 Clean output with progress indicators
+- 🔒 Only works with github.com and gist.github.com
 - 🌈 Simple - Just pass a repo or URL and go!
 - 🎯 Selective - Filter files with glob patterns (defaults to .claude/** and CLAUDE.md)
-
-## Requirements
-
-- Node.js >= 18.0.0
 
 ## Development
 
 ```sh
-# Clone the repository
-vlurp indexzero/vlurp
+# clone the repository
+git clone git@github.com:indexzero/vlurp.git
 
 # Install dependencies
 cd indexzero/vlurp
