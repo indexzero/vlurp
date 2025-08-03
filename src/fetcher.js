@@ -90,7 +90,6 @@ export class Fetcher {
     // Move to final location
     await cp(tempExtractDir, targetPath, { recursive: true });
     await rm(tempExtractDir, { recursive: true, force: true });
-
   }
 
   async fetch(tarballUrl, targetPath, filters = []) {
