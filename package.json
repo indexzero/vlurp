@@ -8,7 +8,7 @@
     "vlurp": "./bin/vlurp"
   },
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
     "lint": "xo",
     "lint:fix": "xo --fix",
     "changeset": "changeset"
@@ -16,7 +16,7 @@
   "keywords": [
     "cli",
     "github",
-    "clone",
+    "vlurp",
     "download",
     "fetch",
     "repository",
@@ -29,6 +29,8 @@
   },
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
+    "archy": "^1.0.0",
+    "glob": "^11.0.3",
     "hosted-git-info": "^9.0.0",
     "ink": "^6.1.0",
     "ink-spinner": "^5.0.0",

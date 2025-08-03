@@ -18,19 +18,19 @@ npx vlurp <user>/<repo>
 ## Usage
 
 ```sh
-# Vlurp a repository using user/repo format
+# vlurp a repository using user/repo format
 vlurp cool-repo/has-agents
 # → Creates ./cool-repo/has-agents
 
-# Vlurp to a specific directory
+# vlurp to a specific directory
 vlurp cool-repo/has-agents -d ~/projects
 # → Creates ~/projects/cool-repo/has-agents
 
-# Vlurp using a GitHub URL
+# vlurp using a GitHub URL
 vlurp https://github.com/whoever/cool-configs
 # → Creates ./whoever/cool-configs
 
-# Vlurp a GitHub Gist
+# vlurp a GitHub Gist
 vlurp https://gist.github.com/user/abc123def456
 # → Creates ./user/abc123def456
 
@@ -40,10 +40,10 @@ vlurp --help
 # Filter files (default: .claude/** and CLAUDE.md)
 vlurp cool-repo/has-agents --filter "*.ts" --filter "*.tsx"
 
-# Vlurp only specific directories
+# vlurp only specific directories
 vlurp whoever/cool-configs --filter "lib/**" --filter "doc/**"
 
-# Vlurp only markdown files
+# vlurp only markdown files
 vlurp user/repo --filter "*.md"
 ```
 

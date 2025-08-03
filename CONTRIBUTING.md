@@ -5,7 +5,7 @@ Thank you for your interest in contributing to vlurp! This document provides gui
 ## Development
 
 ```sh
-# clone the repository
+# Clone the repository
 git clone git@github.com:indexzero/vlurp.git
 
 # Install dependencies
