@@ -128,7 +128,7 @@ export class Fetcher {
     return { exists: true, fileCount };
   }
 
-  async fetch(tarballUrl, targetPath, filters = [], options = {}) {
+  async fetch(tarballUrl, targetPath, filters = []) {
     // If directory exists, remove it (caller should have already confirmed)
     if (await this.#checkIfExists(targetPath)) {
       await rm(targetPath, { recursive: true, force: true });

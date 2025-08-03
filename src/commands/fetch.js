@@ -3,7 +3,7 @@ import { resolve, join } from 'node:path';
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useApp } from 'ink';
 import Spinner from 'ink-spinner';
-import { ConfirmInput } from '@inkjs/ui';
+import { Alert, Badge, ConfirmInput } from '@inkjs/ui';
 import { parseSource } from '../parser.js';
 import { validateUrl } from '../validator.js';
 import { fetchRepository, checkTargetDirectory } from '../fetcher.js';
@@ -17,7 +17,7 @@ export function FetchCommand({ source, rootDir, filters, force }) {
   const [existingDir, setExistingDir] = useState(null);
   const { exit } = useApp();
 
-  async function performFetch(skipCheck = false) {
+  async function performFetch() {
     try {
       const parsed = existingDir?.parsed || parseSource(source);
       const targetPath = existingDir?.targetPath || resolveTargetPath(parsed.user, parsed.repo, rootDir);
@@ -86,12 +86,24 @@ export function FetchCommand({ source, rootDir, filters, force }) {
   if (status === 'confirming') {
     return React.createElement(
       Box,
-      { flexDirection: 'column' },
-      React.createElement(Text, { color: 'yellow' }, `Warning: Directory ${existingDir.targetPath} already exists with ${existingDir.fileCount} files.`),
-      React.createElement(Text, null, 'Continuing will overwrite existing files.'),
-      React.createElement(Box, { marginTop: 1 },
+      { flexDirection: 'column', gap: 1 },
+      React.createElement(
+        Alert,
+        { variant: 'warning' },
+        `Directory ${existingDir.targetPath} already exists with ${existingDir.fileCount} files.`
+      ),
+      React.createElement(
+        Box,
+        { gap: 1 },
+        React.createElement(Badge, { color: 'yellow' }, 'Warning'),
+        React.createElement(Text, null, 'Continuing will overwrite existing files.')
+      ),
+      React.createElement(
+        Box,
+        { marginTop: 1, gap: 1 },
+        React.createElement(Text, null, 'Continue? '),
         React.createElement(ConfirmInput, {
-          onConfirm: () => performFetch(true),
+          onConfirm: () => performFetch(),
           onCancel: () => {
             setStatus('cancelled');
             setTimeout(() => exit(), 100);
@@ -103,41 +115,58 @@ export function FetchCommand({ source, rootDir, filters, force }) {
 
   if (status === 'cancelled') {
     return React.createElement(
-      Box,
-      { flexDirection: 'column' },
-      React.createElement(Text, { color: 'yellow' }, 'vlurping cancelled.')
+      Alert,
+      { variant: 'info' },
+      'vlurping cancelled.'
     );
   }
 
   if (status === 'error') {
     return React.createElement(
-      Box,
-      { flexDirection: 'column' },
-      React.createElement(Text, { color: 'red' }, `✗ Error: ${error}`)
+      Alert,
+      { variant: 'error' },
+      error
     );
   }
 
   if (status === 'complete') {
     return React.createElement(
       Box,
-      { flexDirection: 'column' },
-      React.createElement(Text, { color: 'green' }, `✓ Successfully vlurped ${result.user}/${result.repo}`),
-      React.createElement(Text, { color: 'gray' }, `  Location: ${result.path}`),
-      result.filterCount > 0 && React.createElement(Text, { color: 'gray' }, `  Filters: ${result.filterCount} pattern(s) applied`),
-      treeOutput && React.createElement(Box, { marginTop: 1 }, React.createElement(Text, null, treeOutput)),
-      React.createElement(Text, { color: 'cyan', marginTop: 1 }, `✨ vlurped ${result.fileCount} files to ${result.path}`)
+      { flexDirection: 'column', gap: 1 },
+      React.createElement(
+        Alert,
+        { variant: 'success' },
+        `Successfully vlurped ${result.user}/${result.repo}`
+      ),
+      React.createElement(
+        Box,
+        { flexDirection: 'column' },
+        React.createElement(Text, { dimColor: true }, `Location: ${result.path}`),
+        result.filterCount > 0 && React.createElement(Text, { dimColor: true }, `Filters: ${result.filterCount} pattern(s) applied`)
+      ),
+      treeOutput && React.createElement(
+        Box,
+        { flexDirection: 'column', marginTop: 1 },
+        React.createElement(Text, null, treeOutput)
+      ),
+      React.createElement(
+        Box,
+        { gap: 1, marginTop: 1 },
+        React.createElement(Badge, { color: 'cyan' }, `${result.fileCount} files`),
+        React.createElement(Text, null, `vlurped to ${result.path}`)
+      )
     );
   }
 
   return React.createElement(
     Box,
-    null,
+    { gap: 1 },
+    React.createElement(Spinner, { type: 'dots' }),
     React.createElement(
       Text,
-      null,
-      React.createElement(Spinner, { type: 'dots' })
-    ),
-    React.createElement(Text, null, ` ${status === 'locating' ? 'Locating repository...' : 'vlurping repository...'}`)
+      { dimColor: true },
+      status === 'locating' ? 'Locating repository...' : 'vlurping repository...'
+    )
   );
 }
 
