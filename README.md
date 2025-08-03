@@ -56,20 +56,10 @@ vlurp user/repo --filter "*.md"
 - 🌈 Simple - Just pass a repo or URL and go!
 - 🎯 Selective - Filter files with glob patterns (defaults to .claude/** and CLAUDE.md)
 
-## Development
+## Contributing
 
-```sh
-# clone the repository
-git clone git@github.com:indexzero/vlurp.git
+Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to contribute to this project.
 
-# Install dependencies
-cd indexzero/vlurp
-pnpm install
+## Code of Conduct
 
-# Run tests
-pnpm test
-
-# Run locally
-node bin/vlurp <user>/<repo>
-```
-
+This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
