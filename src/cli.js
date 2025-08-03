@@ -10,21 +10,24 @@ const j = jack({
   .description('A fun CLI tool to quickly fetch GitHub repositories and gists')
   .opt({
     d: {
-      description: 'Root directory for cloning',
+      description: 'Root directory for vlurping',
       short: 'd'
     }
   })
   .optList({
     filter: {
-      description: 'Glob patterns to filter files (defaults to .claude/** and CLAUDE.md)',
-      short: 'f',
-      default: ['.claude/**', 'CLAUDE.md']
+      description: 'Glob patterns to filter files (see defaults in help)',
+      default: ['.claude/**', 'CLAUDE.md', '*.md', '!README.md', '!CONTRIBUTING.md', '!LICENSE.md', '!CHANGELOG.md', '!CODE_OF_CONDUCT.md', 'agents/**', 'commands/**']
     }
   })
   .flag({
     help: {
       description: 'Show this help message',
       short: 'h'
+    },
+    force: {
+      description: 'Force overwrite existing directories without prompting',
+      short: 'f'
     }
   });
 
@@ -40,9 +43,10 @@ Usage:
   vlurp <url> -d <root>                 Fetch to <root>/<user>/<repo>
 
 Examples:
-  vlurp facebook/react                   Fetch with default filters (.claude/**, CLAUDE.md)
+  vlurp facebook/react                   Fetch with default filters
   vlurp nodejs/node --filter "*.js"      Fetch only JavaScript files
-  vlurp user/repo -f "src/**" -f "*.md"  Fetch src folder and markdown files
+  vlurp user/repo --filter "src/**"      Fetch src folder
+  vlurp user/repo --force                Force overwrite existing directory
 
 Options:
 ${j.usage()}`);
@@ -57,5 +61,8 @@ if (positionals.length === 0) {
 const source = positionals[0];
 const rootDir = values.d;
 const filters = values.filter;
+const {force} = values;
 
-render(React.createElement(FetchCommand, { source, rootDir, filters }));
+render(React.createElement(FetchCommand, {
+  source, rootDir, filters, force
+}));

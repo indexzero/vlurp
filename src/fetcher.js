@@ -1,14 +1,16 @@
-import { access, mkdir, rename } from 'node:fs/promises';
+import {
+  access, mkdir, readdir, cp, rm
+} from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { constants, createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { tmpdir } from 'node:os';
 import { randomBytes } from 'node:crypto';
-import { minimatch } from 'minimatch';
+import { createInterface } from 'node:readline';
+import process from 'node:process';
 import { extract } from 'tar';
 import { request } from 'undici';
-import { cp, rm } from 'node:fs/promises';
-
+import { glob } from 'glob';
 
 export class Fetcher {
   async #ensureDirectory(targetPath) {
@@ -56,46 +58,101 @@ export class Fetcher {
     const tempExtractDir = join(tmpdir(), `vlurp-extract-${randomBytes(8).toString('hex')}`);
     await mkdir(tempExtractDir, { recursive: true });
 
-    const extractOptions = {
+    // Extract everything first
+    await extract({
       file: tarballPath,
       cwd: tempExtractDir,
       strip: 1 // Strip the top-level directory from the tarball
-    };
+    });
 
-    // Add filter if patterns are provided
-    if (filters && filters.length > 0) {
-      extractOptions.filter = path => {
-        // Strip leading slash if present (tar sometimes includes it)
-        let normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+    // If no filters provided, copy everything
+    if (!filters || filters.length === 0) {
+      await cp(tempExtractDir, targetPath, { recursive: true });
+    } else {
+      // Separate positive and negative patterns
+      const ignorePatterns = filters
+        .filter(p => p.startsWith('!'))
+        .map(p => p.slice(1)); // Remove the ! prefix
 
-        // Strip the first directory component (e.g., "claude-task-master-HEAD/")
-        // This matches what the strip: 1 option does
-        const firstSlash = normalizedPath.indexOf('/');
-        if (firstSlash !== -1) {
-          normalizedPath = normalizedPath.slice(firstSlash + 1);
-        }
+      const includePatterns = filters
+        .filter(p => !p.startsWith('!'));
 
-        // Check if the path matches any of the filter patterns
-        const matches = filters.some(pattern =>
-          // For debugging: uncomment to see what's being filtered
-          // console.log(`Checking ${normalizedPath} against ${pattern}`);
-          minimatch(normalizedPath, pattern, { matchBase: true, dot: true }));
+      // If no positive patterns, include everything by default
+      const patterns = includePatterns.length > 0 ? includePatterns : ['**/*'];
 
-        return matches;
-      };
+      // Use glob to find matching files
+      const matchedFiles = await glob(patterns, {
+        cwd: tempExtractDir,
+        ignore: ignorePatterns,
+        dot: true,
+        nodir: false
+      });
+
+      // Create target directory
+      await mkdir(targetPath, { recursive: true });
+
+      // Copy matched files maintaining directory structure
+
+      for (const file of matchedFiles) {
+        const sourcePath = join(tempExtractDir, file);
+        const destPath = join(targetPath, file);
+
+        // Ensure parent directory exists
+        // eslint-disable-next-line no-await-in-loop
+        await mkdir(dirname(destPath), { recursive: true });
+
+        // Copy file or directory
+        // eslint-disable-next-line no-await-in-loop
+        await cp(sourcePath, destPath, { recursive: true });
+      }
     }
 
-    await extract(extractOptions);
-
-    // Move to final location
-    await cp(tempExtractDir, targetPath, { recursive: true });
+    // Clean up temp directory
     await rm(tempExtractDir, { recursive: true, force: true });
   }
 
-  async fetch(tarballUrl, targetPath, filters = []) {
+  async countFiles(dir) {
+    try {
+      const files = await readdir(dir, { recursive: true });
+      return files.length;
+    } catch {
+      return 0;
+    }
+  }
+
+  async #promptUser(question) {
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    return new Promise(resolve => {
+      rl.question(question, answer => {
+        rl.close();
+        resolve(answer);
+      });
+    });
+  }
+
+  async fetch(tarballUrl, targetPath, filters = [], options = {}) {
     // Check if target already exists
     if (await this.#checkIfExists(targetPath)) {
-      throw new Error(`Directory already exists: ${targetPath}`);
+      if (!options.force) {
+        const fileCount = await this.countFiles(targetPath);
+        // For now, we'll keep these console.logs as they happen before Ink takes over
+        // In a more complete solution, we'd handle this in the Ink component
+        console.log(`\nWarning: Directory ${targetPath} already exists with ${fileCount} files.`);
+        console.log('Continuing will overwrite existing files.');
+
+        const answer = await this.#promptUser('Continue? (y/N): ');
+        if (answer.toLowerCase() !== 'y') {
+          console.log('vlurping cancelled.');
+          process.exit(0);
+        }
+      }
+
+      // Remove existing directory before proceeding
+      await rm(targetPath, { recursive: true, force: true });
     }
 
     let tempTarball;
@@ -115,7 +172,11 @@ export class Fetcher {
   }
 }
 
-export async function fetchRepository(tarballUrl, targetPath, filters = []) {
+export async function fetchRepository(tarballUrl, targetPath, filters = [], options = {}) {
   const fetcher = new Fetcher();
-  return await fetcher.fetch(tarballUrl, targetPath, filters);
+  await fetcher.fetch(tarballUrl, targetPath, filters, options);
+
+  // Return file count for the component to display
+  const fileCount = await fetcher.countFiles(targetPath);
+  return { fileCount };
 }

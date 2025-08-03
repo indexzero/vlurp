@@ -6,11 +6,13 @@ import Spinner from 'ink-spinner';
 import { parseSource } from '../parser.js';
 import { validateUrl } from '../validator.js';
 import { fetchRepository } from '../fetcher.js';
+import { buildTreeString } from '../tree.js';
 
-export function FetchCommand({ source, rootDir, filters }) {
+export function FetchCommand({ source, rootDir, filters, force }) {
   const [status, setStatus] = useState('locating');
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const [treeOutput, setTreeOutput] = useState(null);
 
   useEffect(() => {
     async function performFetch() {
@@ -32,13 +34,18 @@ export function FetchCommand({ source, rootDir, filters }) {
 
         // Vlurp the repository
         setStatus('vlurping');
-        await fetchRepository(parsed.tarballUrl, targetPath, filters);
+        const { fileCount } = await fetchRepository(parsed.tarballUrl, targetPath, filters, { force });
+
+        // Generate tree output
+        const tree = await buildTreeString(targetPath);
+        setTreeOutput(tree);
 
         setResult({
           user: parsed.user,
           repo: parsed.repo,
           path: targetPath,
-          filterCount: filters.length
+          filterCount: filters.length,
+          fileCount
         });
         setStatus('complete');
       } catch (err) {
@@ -48,7 +55,7 @@ export function FetchCommand({ source, rootDir, filters }) {
     }
 
     performFetch();
-  }, [source, rootDir, filters]);
+  }, [source, rootDir, filters, force]);
 
   if (status === 'error') {
     return React.createElement(
@@ -62,9 +69,11 @@ export function FetchCommand({ source, rootDir, filters }) {
     return React.createElement(
       Box,
       { flexDirection: 'column' },
-      React.createElement(Text, { color: 'green' }, `✓ Successfully cloned ${result.user}/${result.repo}`),
+      React.createElement(Text, { color: 'green' }, `✓ Successfully vlurped ${result.user}/${result.repo}`),
       React.createElement(Text, { color: 'gray' }, `  Location: ${result.path}`),
-      result.filterCount > 0 && React.createElement(Text, { color: 'gray' }, `  Filters: ${result.filterCount} pattern(s) applied`)
+      result.filterCount > 0 && React.createElement(Text, { color: 'gray' }, `  Filters: ${result.filterCount} pattern(s) applied`),
+      treeOutput && React.createElement(Box, { marginTop: 1 }, React.createElement(Text, null, treeOutput)),
+      React.createElement(Text, { color: 'cyan', marginTop: 1 }, `✨ vlurped ${result.fileCount} files to ${result.path}`)
     );
   }
 
@@ -76,7 +85,7 @@ export function FetchCommand({ source, rootDir, filters }) {
       null,
       React.createElement(Spinner, { type: 'dots' })
     ),
-    React.createElement(Text, null, ` ${status === 'parsing' ? 'Parsing input...' : 'Cloning repository...'}`)
+    React.createElement(Text, null, ` ${status === 'parsing' ? 'Parsing input...' : 'vlurping repository...'}`)
   );
 }
 
