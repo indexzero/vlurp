@@ -1,5 +1,11 @@
 # vlurp
 
+## 1.2.0 
+
+### Minor changes
+
+- 091dbfd: Add `**/*.md` to the default filter
+
 ## 1.1.0
 
 ### Minor Changes
