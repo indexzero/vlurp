@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "vlurp": "./bin/vlurp"
+    "vlurp": "bin/vlurp"
   },
   "scripts": {
     "test": "node --test test/*.test.js",
