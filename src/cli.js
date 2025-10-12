@@ -17,7 +17,7 @@ const j = jack({
   .optList({
     filter: {
       description: 'Glob patterns to filter files (see defaults in help)',
-      default: ['.claude/**', 'CLAUDE.md', '*.md', '!README.md', '!CONTRIBUTING.md', '!LICENSE.md', '!CHANGELOG.md', '!CODE_OF_CONDUCT.md', 'agents/**', 'commands/**']
+      default: ['.claude/**', 'CLAUDE.md', '*.md', '**/*.md', '!README.md', '!CONTRIBUTING.md', '!LICENSE.md', '!CHANGELOG.md', '!CODE_OF_CONDUCT.md', 'agents/**', 'commands/**']
     }
   })
   .flag({
