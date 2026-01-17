@@ -3,9 +3,8 @@ import {resolve} from 'node:path';
 import React, {useState, useEffect} from 'react';
 import {Box, Text} from 'ink';
 import Spinner from 'ink-spinner';
-import {parseVlurpfile} from '../vlurpfile-parser.js';
-import {parseSource} from '../parser.js';
-import {fetchRepository} from '../fetcher.js';
+import {parseVlurpfile} from '../vlurpfile.js';
+import {parseSource, fetchRepository} from '../remote.js';
 
 export function BatchCommand({vlurpfile, dryRun, force, quiet: _quiet}) {
   const [status, setStatus] = useState('parsing');

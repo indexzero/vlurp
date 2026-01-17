@@ -3,9 +3,7 @@ import {resolve, join} from 'node:path';
 import React, {useState, useEffect} from 'react';
 import {Box, Text} from 'ink';
 import Spinner from 'ink-spinner';
-import {parseSource} from '../parser.js';
-import {validateUrl} from '../validator.js';
-import {fetchRepository} from '../fetcher.js';
+import {parseSource, validateUrl, fetchRepository} from '../remote.js';
 import {detectStructure} from '../detector.js';
 import {buildTreeString} from '../tree.js';
 
