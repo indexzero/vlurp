@@ -1,10 +1,10 @@
 import process from 'node:process';
-import { jack } from 'jackspeak';
-import { render } from 'ink';
+import {jack} from 'jackspeak';
+import {render} from 'ink';
 import React from 'react';
-import { FetchCommand } from './commands/fetch.js';
-import { BatchCommand } from './commands/batch.js';
-import { PRESETS } from './presets.js';
+import {FetchCommand} from './commands/fetch.js';
+import {BatchCommand} from './commands/batch.js';
+import {PRESETS} from './presets.js';
 
 const j = jack({
   usage: 'vlurp [command] [source] [options]'
@@ -49,7 +49,7 @@ const j = jack({
     }
   });
 
-const { values, positionals } = j.parse();
+const {values, positionals} = j.parse();
 
 if (values.help) {
   console.log(`vlurp - A fun CLI tool to quickly fetch GitHub repositories and gists
@@ -67,9 +67,8 @@ Usage:
   vlurp batch <vlurpfile> --dry-run      Preview batch operations
 
 Presets:
-${Object.entries(PRESETS).map(([name, config]) => 
-  `  ${name.padEnd(10)} ${config.description}`
-).join('\n')}
+${Object.entries(PRESETS).map(([name, config]) =>
+  `  ${name.padEnd(10)} ${config.description}`).join('\n')}
 
 Examples:
   vlurp facebook/react                   Fetch with default filters
@@ -100,7 +99,7 @@ if (positionals.length === 0) {
 
 const command = positionals[0];
 const rootDir = values.d;
-const { force, auto, preset, quiet } = values;
+const {force, auto, preset, quiet} = values;
 const dryRun = values['dry-run'];
 
 // Handle subcommands
@@ -111,23 +110,24 @@ if (command === 'batch') {
     console.error('Usage: vlurp batch <vlurpfile>');
     process.exit(1);
   }
+
   render(React.createElement(BatchCommand, {
     vlurpfile, dryRun, force, quiet
   }));
 } else {
   // Regular fetch command
   const source = command;
-  
+
   // Resolve filters from preset or explicit filters
   let filters = values.filter;
   if (preset && PRESETS[preset]) {
     filters = PRESETS[preset].filters;
   }
-  
+
   render(React.createElement(FetchCommand, {
-    source, 
-    rootDir, 
-    filters, 
+    source,
+    rootDir,
+    filters,
     force,
     auto,
     dryRun,

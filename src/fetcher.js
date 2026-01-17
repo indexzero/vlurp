@@ -1,16 +1,16 @@
 import {
   access, mkdir, readdir, cp, rm
 } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { constants, createWriteStream } from 'node:fs';
-import { pipeline } from 'node:stream/promises';
-import { tmpdir } from 'node:os';
-import { randomBytes } from 'node:crypto';
-import { createInterface } from 'node:readline';
+import {dirname, join} from 'node:path';
+import {constants, createWriteStream} from 'node:fs';
+import {pipeline} from 'node:stream/promises';
+import {tmpdir} from 'node:os';
+import {randomBytes} from 'node:crypto';
+import {createInterface} from 'node:readline';
 import process from 'node:process';
-import { extract } from 'tar';
-import { request } from 'undici';
-import { glob } from 'glob';
+import {extract} from 'tar';
+import {request} from 'undici';
+import {glob} from 'glob';
 
 export class Fetcher {
   async #ensureDirectory(targetPath) {
@@ -18,7 +18,7 @@ export class Fetcher {
     try {
       await access(dir, constants.F_OK);
     } catch {
-      await mkdir(dir, { recursive: true });
+      await mkdir(dir, {recursive: true});
     }
   }
 
@@ -32,9 +32,9 @@ export class Fetcher {
   }
 
   async #downloadTarball(url) {
-    const tempFile = join(tmpdir(), `vlurp-${randomBytes(8).toString('hex')}.tar.gz`);
+    const temporaryFile = join(tmpdir(), `vlurp-${randomBytes(8).toString('hex')}.tar.gz`);
 
-    const { statusCode, body } = await request(url, {
+    const {statusCode, body} = await request(url, {
       headers: {
         'User-Agent': 'vlurp-cli'
       }
@@ -44,10 +44,10 @@ export class Fetcher {
       throw new Error(`Failed to download tarball: HTTP ${statusCode}`);
     }
 
-    const fileStream = createWriteStream(tempFile);
+    const fileStream = createWriteStream(temporaryFile);
     await pipeline(body, fileStream);
 
-    return tempFile;
+    return temporaryFile;
   }
 
   async #extractTarball(tarballPath, targetPath, filters = []) {
@@ -55,19 +55,19 @@ export class Fetcher {
     await this.#ensureDirectory(targetPath);
 
     // Extract to a temp directory first
-    const tempExtractDir = join(tmpdir(), `vlurp-extract-${randomBytes(8).toString('hex')}`);
-    await mkdir(tempExtractDir, { recursive: true });
+    const temporaryExtractDir = join(tmpdir(), `vlurp-extract-${randomBytes(8).toString('hex')}`);
+    await mkdir(temporaryExtractDir, {recursive: true});
 
     // Extract everything first
     await extract({
       file: tarballPath,
-      cwd: tempExtractDir,
+      cwd: temporaryExtractDir,
       strip: 1 // Strip the top-level directory from the tarball
     });
 
     // If no filters provided, copy everything
     if (!filters || filters.length === 0) {
-      await cp(tempExtractDir, targetPath, { recursive: true });
+      await cp(temporaryExtractDir, targetPath, {recursive: true});
     } else {
       // Separate positive and negative patterns
       const ignorePatterns = filters
@@ -82,38 +82,38 @@ export class Fetcher {
 
       // Use glob to find matching files
       const matchedFiles = await glob(patterns, {
-        cwd: tempExtractDir,
+        cwd: temporaryExtractDir,
         ignore: ignorePatterns,
         dot: true,
         nodir: false
       });
 
       // Create target directory
-      await mkdir(targetPath, { recursive: true });
+      await mkdir(targetPath, {recursive: true});
 
       // Copy matched files maintaining directory structure
 
       for (const file of matchedFiles) {
-        const sourcePath = join(tempExtractDir, file);
+        const sourcePath = join(temporaryExtractDir, file);
         const destPath = join(targetPath, file);
 
         // Ensure parent directory exists
         // eslint-disable-next-line no-await-in-loop
-        await mkdir(dirname(destPath), { recursive: true });
+        await mkdir(dirname(destPath), {recursive: true});
 
         // Copy file or directory
         // eslint-disable-next-line no-await-in-loop
-        await cp(sourcePath, destPath, { recursive: true });
+        await cp(sourcePath, destPath, {recursive: true});
       }
     }
 
     // Clean up temp directory
-    await rm(tempExtractDir, { recursive: true, force: true });
+    await rm(temporaryExtractDir, {recursive: true, force: true});
   }
 
   async countFiles(dir) {
     try {
-      const files = await readdir(dir, { recursive: true });
+      const files = await readdir(dir, {recursive: true});
       return files.length;
     } catch {
       return 0;
@@ -152,21 +152,21 @@ export class Fetcher {
       }
 
       // Remove existing directory before proceeding
-      await rm(targetPath, { recursive: true, force: true });
+      await rm(targetPath, {recursive: true, force: true});
     }
 
-    let tempTarball;
+    let temporaryTarball;
     try {
       // Download tarball
-      tempTarball = await this.#downloadTarball(tarballUrl);
+      temporaryTarball = await this.#downloadTarball(tarballUrl);
 
       // Extract to target path
-      await this.#extractTarball(tempTarball, targetPath, filters);
+      await this.#extractTarball(temporaryTarball, targetPath, filters);
     } finally {
       // Clean up temp file
-      if (tempTarball) {
-        const { unlink } = await import('node:fs/promises');
-        await unlink(tempTarball, { force: true });
+      if (temporaryTarball) {
+        const {unlink} = await import('node:fs/promises');
+        await unlink(temporaryTarball, {force: true});
       }
     }
   }
@@ -178,5 +178,5 @@ export async function fetchRepository(tarballUrl, targetPath, filters = [], opti
 
   // Return file count for the component to display
   const fileCount = await fetcher.countFiles(targetPath);
-  return { fileCount };
+  return {fileCount};
 }

@@ -2,6 +2,12 @@ export default {
   space: 2,
   semicolon: true,
   prettier: false,
+  ignores: [
+    'concepts/**',
+    'vlurp-new/**',
+    'dgm/**',
+    'ext/**'
+  ],
   rules: {
     'unicorn/prevent-abbreviations': 'off',
     'import/extensions': 'off',
@@ -11,7 +17,7 @@ export default {
     'unicorn/no-process-exit': 'off',
     'unicorn/import-style': 'off',
     'no-return-await': 'off',
-    'unicorn/catch-error-name': ['error', { name: 'err' }],
+    'unicorn/catch-error-name': ['error', {name: 'err'}],
     'unicorn/no-array-for-each': 'off'
   }
 };

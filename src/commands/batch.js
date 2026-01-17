@@ -1,13 +1,13 @@
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import React, { useState, useEffect } from 'react';
-import { Box, Text } from 'ink';
+import {readFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import React, {useState, useEffect} from 'react';
+import {Box, Text} from 'ink';
 import Spinner from 'ink-spinner';
-import { parseVlurpfile } from '../vlurpfile-parser.js';
-import { parseSource } from '../parser.js';
-import { fetchRepository } from '../fetcher.js';
+import {parseVlurpfile} from '../vlurpfile-parser.js';
+import {parseSource} from '../parser.js';
+import {fetchRepository} from '../fetcher.js';
 
-export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
+export function BatchCommand({vlurpfile, dryRun, force, quiet: _quiet}) {
   const [status, setStatus] = useState('parsing');
   const [error, setError] = useState(null);
   const [entries, setEntries] = useState([]);
@@ -20,11 +20,11 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
         // Read and parse vlurpfile
         setStatus('parsing');
         const vlurpfilePath = resolve(vlurpfile);
-        const content = await readFile(vlurpfilePath, 'utf-8');
+        const content = await readFile(vlurpfilePath, 'utf8');
         const parsed = parseVlurpfile(content);
-        
+
         setEntries(parsed);
-        
+
         if (dryRun) {
           setStatus('dry-run');
           const dryResults = parsed.map(entry => {
@@ -37,7 +37,7 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
                 targetPath,
                 message: `Would fetch ${parsedSource.user}/${parsedSource.repo} to ${targetPath}`
               };
-            } catch (err) {
+            } catch {
               return {
                 ...entry,
                 status: 'error',
@@ -48,26 +48,26 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
           setResults(dryResults);
           return;
         }
-        
+
         // Process each entry
         setStatus('fetching');
         const batchResults = [];
-        
-        for (let i = 0; i < parsed.length; i++) {
+
+        for (const [i, entry] of parsed.entries()) {
           setCurrentIndex(i);
-          const entry = parsed[i];
-          
+
           try {
             const parsedSource = parseSource(entry.source);
             const targetPath = entry.targetPath || resolve(entry.rootDir || '.', parsedSource.user, parsedSource.repo);
-            
+
+            // eslint-disable-next-line no-await-in-loop -- Sequential batch processing is intentional
             await fetchRepository(
               parsedSource.tarballUrl,
               targetPath,
               entry.filters,
-              { force: force || entry.force }
+              {force: force || entry.force}
             );
-            
+
             batchResults.push({
               ...entry,
               status: 'success',
@@ -81,10 +81,10 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
               message: `✗ ${entry.source}: ${err.message}`
             });
           }
-          
+
           setResults([...batchResults]);
         }
-        
+
         setStatus('complete');
       } catch (err) {
         setError(err.message);
@@ -98,8 +98,8 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
   if (status === 'error') {
     return React.createElement(
       Box,
-      { flexDirection: 'column' },
-      React.createElement(Text, { color: 'red' }, `✗ Error: ${error}`)
+      {flexDirection: 'column'},
+      React.createElement(Text, {color: 'red'}, `✗ Error: ${error}`)
     );
   }
 
@@ -107,7 +107,7 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
     return React.createElement(
       Box,
       null,
-      React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
+      React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
       React.createElement(Text, null, ' Parsing .vlurpfile...')
     );
   }
@@ -115,30 +115,29 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
   if (status === 'dry-run') {
     return React.createElement(
       Box,
-      { flexDirection: 'column' },
-      React.createElement(Text, { color: 'yellow', bold: true }, `📋 Dry run - would process ${results.length} entries:\n`),
-      ...results.map((result, i) => 
+      {flexDirection: 'column'},
+      React.createElement(Text, {color: 'yellow', bold: true}, `📋 Dry run - would process ${results.length} entries:\n`),
+      ...results.map((result, i) =>
         React.createElement(
           Box,
-          { key: i, flexDirection: 'column', marginBottom: 1 },
+          {key: i, flexDirection: 'column', marginBottom: 1},
           React.createElement(
             Text,
-            { color: result.status === 'error' ? 'red' : 'gray' },
+            {color: result.status === 'error' ? 'red' : 'gray'},
             `  ${i + 1}. ${result.source}`
           ),
           result.targetPath && React.createElement(
             Text,
-            { color: 'cyan' },
+            {color: 'cyan'},
             `     → ${result.targetPath}`
           ),
           result.filters?.length > 0 && React.createElement(
             Text,
-            { color: 'gray', dimColor: true },
+            {color: 'gray', dimColor: true},
             `     filters: ${result.filters.slice(0, 3).join(', ')}${result.filters.length > 3 ? '...' : ''}`
           )
-        )
-      ),
-      React.createElement(Text, { color: 'gray', marginTop: 1 }, '\nRun without --dry-run to execute.')
+        )),
+      React.createElement(Text, {color: 'gray', marginTop: 1}, '\nRun without --dry-run to execute.')
     );
   }
 
@@ -146,24 +145,23 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
     const completed = results.length;
     const total = entries.length;
     const current = entries[currentIndex];
-    
+
     return React.createElement(
       Box,
-      { flexDirection: 'column' },
+      {flexDirection: 'column'},
       React.createElement(
         Box,
         null,
-        React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
+        React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
         React.createElement(Text, null, ` [${completed + 1}/${total}] Fetching ${current?.source}...`)
       ),
-      results.length > 0 && React.createElement(Box, { marginTop: 1 }),
+      results.length > 0 && React.createElement(Box, {marginTop: 1}),
       ...results.slice(-5).map((result, i) =>
         React.createElement(
           Text,
-          { key: i, color: result.status === 'success' ? 'green' : 'red' },
+          {key: i, color: result.status === 'success' ? 'green' : 'red'},
           `  ${result.message}`
-        )
-      )
+        ))
     );
   }
 
@@ -173,19 +171,18 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet }) {
 
   return React.createElement(
     Box,
-    { flexDirection: 'column' },
+    {flexDirection: 'column'},
     React.createElement(
       Text,
-      { color: errorCount > 0 ? 'yellow' : 'green', bold: true },
+      {color: errorCount > 0 ? 'yellow' : 'green', bold: true},
       `✨ Batch complete: ${successCount} succeeded${errorCount > 0 ? `, ${errorCount} failed` : ''}`
     ),
     React.createElement(Text, null, ''),
     ...results.map((result, i) =>
       React.createElement(
         Text,
-        { key: i, color: result.status === 'success' ? 'green' : 'red' },
+        {key: i, color: result.status === 'success' ? 'green' : 'red'},
         `  ${result.message}`
-      )
-    )
+      ))
   );
 }

@@ -1,9 +1,9 @@
-import { resolve } from 'node:path';
-import { PRESETS } from './presets.js';
+import {resolve} from 'node:path';
+import {PRESETS} from './presets.js';
 
 /**
  * Parses a .vlurpfile and returns an array of vlurp commands.
- * 
+ *
  * Format:
  *   # Comments start with #
  *   vlurp user/repo -d ./vlurp
@@ -16,12 +16,12 @@ export function parseVlurpfile(content) {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    
+
     // Skip empty lines and comments
     if (!trimmed || trimmed.startsWith('#')) {
       continue;
     }
-    
+
     // Parse the vlurp command
     const entry = parseVlurpLine(trimmed);
     if (entry) {
@@ -38,14 +38,14 @@ export function parseVlurpfile(content) {
 function parseVlurpLine(line) {
   // Remove 'vlurp' prefix if present
   const command = line.startsWith('vlurp ') ? line.slice(6).trim() : line;
-  
+
   // Simple argument parser
   const args = parseArgs(command);
-  
+
   if (args.length === 0) {
     return null;
   }
-  
+
   const source = args[0];
   const entry = {
     source,
@@ -54,11 +54,11 @@ function parseVlurpLine(line) {
     preset: null,
     force: false
   };
-  
+
   // Parse options
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
-    
+
     if (arg === '-d' && args[i + 1]) {
       entry.rootDir = args[++i];
     } else if (arg === '--filter' && args[i + 1]) {
@@ -72,7 +72,7 @@ function parseVlurpLine(line) {
       entry.force = true;
     }
   }
-  
+
   // Calculate target path
   if (entry.rootDir) {
     const parts = source.split('/');
@@ -81,22 +81,22 @@ function parseVlurpLine(line) {
       entry.targetPath = resolve(entry.rootDir, user, repo);
     }
   }
-  
+
   return entry;
 }
 
 /**
  * Simple argument parser that handles quoted strings.
  */
-function parseArgs(str) {
+function parseArgs(string_) {
   const args = [];
   const regex = /(?:[^\s"]+|"[^"]*")+/g;
   let match;
-  
-  while ((match = regex.exec(str)) !== null) {
+
+  while ((match = regex.exec(string_)) !== null) {
     // Remove surrounding quotes
-    args.push(match[0].replace(/^"|"$/g, ''));
+    args.push(match[0].replaceAll(/^"|"$/g, ''));
   }
-  
+
   return args;
 }
