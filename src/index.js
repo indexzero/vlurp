@@ -17,3 +17,8 @@ export {
   readLineage,
   verifyFiles
 } from './lineage.js';
+export {
+  scanFileContent,
+  scanDirectory,
+  summarizeScan
+} from './scanner.js';

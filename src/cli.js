@@ -8,6 +8,7 @@ import {VerifyCommand} from './commands/verify.js';
 import {PinCommand} from './commands/pin.js';
 import {OutdatedCommand} from './commands/outdated.js';
 import {DiffCommand} from './commands/diff.js';
+import {ScanCommand} from './commands/scan.js';
 import {PRESETS} from './presets.js';
 
 const j = jack({
@@ -73,6 +74,7 @@ Commands:
   vlurp pin [source]      Pin unpinned sources to current upstream HEAD
   vlurp outdated [file]   Check for upstream changes
   vlurp diff <source>     Show content diff against upstream
+  vlurp scan <path>       Analyze content for injection/escalation patterns
 
 Usage:
   vlurp <user>/<repo>                           Fetch to ./<user>/<repo>
@@ -100,6 +102,7 @@ Examples:
   vlurp pin                               Pin all sources
   vlurp outdated .vlurpfile               Check upstream
   vlurp diff user/repo -d ./skills        Content diff
+  vlurp scan skills/                      Scan for threats
 
 .vlurpfile Format:
   # Comments start with #
@@ -159,6 +162,13 @@ switch (command) {
   case 'outdated': {
     const vlurpfileArg = positionals[1] || null;
     render(React.createElement(OutdatedCommand, {vlurpfilePath: vlurpfileArg}));
+
+    break;
+  }
+
+  case 'scan': {
+    const scanPath = positionals[1] || '.';
+    render(React.createElement(ScanCommand, {targetPath: scanPath}));
 
     break;
   }
