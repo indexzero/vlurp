@@ -6,6 +6,8 @@ import {FetchCommand} from './commands/fetch.js';
 import {BatchCommand} from './commands/batch.js';
 import {VerifyCommand} from './commands/verify.js';
 import {PinCommand} from './commands/pin.js';
+import {OutdatedCommand} from './commands/outdated.js';
+import {DiffCommand} from './commands/diff.js';
 import {PRESETS} from './presets.js';
 
 const j = jack({
@@ -69,6 +71,8 @@ Commands:
   vlurp batch <file>      Process a .vlurpfile
   vlurp verify <path>     Verify file integrity against lineage records
   vlurp pin [source]      Pin unpinned sources to current upstream HEAD
+  vlurp outdated [file]   Check for upstream changes
+  vlurp diff <source>     Show content diff against upstream
 
 Usage:
   vlurp <user>/<repo>                           Fetch to ./<user>/<repo>
@@ -78,7 +82,8 @@ Usage:
   vlurp batch <vlurpfile>                       Process batch file
   vlurp verify ./skills                         Check files against .vlurp.jsonl
   vlurp pin                                     Pin all unpinned in .vlurpfile
-  vlurp pin user/repo                           Pin a specific source
+  vlurp outdated .vlurpfile                     Check what has changed upstream
+  vlurp diff user/repo -d ./skills              Show diff against upstream
 
 Presets:
 ${Object.entries(PRESETS).map(([name, config]) =>
@@ -93,6 +98,8 @@ Examples:
   vlurp batch .vlurpfile --dry-run        Preview batch operations
   vlurp verify skills/                    Verify integrity
   vlurp pin                               Pin all sources
+  vlurp outdated .vlurpfile               Check upstream
+  vlurp diff user/repo -d ./skills        Content diff
 
 .vlurpfile Format:
   # Comments start with #
@@ -145,6 +152,26 @@ switch (command) {
     const source = positionals[1] || null;
     const vlurpfilePath = positionals[2] || null;
     render(React.createElement(PinCommand, {source, vlurpfilePath}));
+
+    break;
+  }
+
+  case 'outdated': {
+    const vlurpfileArg = positionals[1] || null;
+    render(React.createElement(OutdatedCommand, {vlurpfilePath: vlurpfileArg}));
+
+    break;
+  }
+
+  case 'diff': {
+    const diffSource = positionals[1];
+    if (!diffSource) {
+      console.error('Error: diff command requires a source');
+      console.error('Usage: vlurp diff <user/repo> [-d <root>]');
+      process.exit(1);
+    }
+
+    render(React.createElement(DiffCommand, {source: diffSource, rootDir}));
 
     break;
   }
