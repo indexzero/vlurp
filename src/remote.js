@@ -16,18 +16,22 @@ import hostedGitInfo from 'hosted-git-info';
 // --- Parsing ---
 
 export class Parser {
-  parse(source) {
+  parse(source, {ref} = {}) {
     // Try to parse with hosted-git-info
     const info = hostedGitInfo.fromUrl(source);
 
     if (info && info.type === 'github') {
       // Handle both regular repos and gists
       const isGist = source.includes('gist.github.com');
+      const tarballUrl = ref
+        ? `https://api.github.com/repos/${info.user}/${info.project}/tarball/${ref}`
+        : info.tarball();
       return {
         type: isGist ? 'gist' : 'github',
         user: info.user,
         repo: info.project,
-        tarballUrl: info.tarball(),
+        ref: ref || null,
+        tarballUrl,
         info
       };
     }
@@ -36,11 +40,15 @@ export class Parser {
     if (!source.includes('://') && source.includes('/')) {
       const shorthandInfo = hostedGitInfo.fromUrl(`github:${source}`);
       if (shorthandInfo) {
+        const tarballUrl = ref
+          ? `https://api.github.com/repos/${shorthandInfo.user}/${shorthandInfo.project}/tarball/${ref}`
+          : shorthandInfo.tarball();
         return {
           type: 'github',
           user: shorthandInfo.user,
           repo: shorthandInfo.project,
-          tarballUrl: shorthandInfo.tarball(),
+          ref: ref || null,
+          tarballUrl,
           info: shorthandInfo
         };
       }
@@ -50,9 +58,9 @@ export class Parser {
   }
 }
 
-export function parseSource(source) {
+export function parseSource(source, options = {}) {
   const parser = new Parser();
-  return parser.parse(source);
+  return parser.parse(source, options);
 }
 
 // --- Validation ---
@@ -117,7 +125,8 @@ export class Fetcher {
     const {statusCode, body} = await request(url, {
       headers: {
         'User-Agent': 'vlurp-cli'
-      }
+      },
+      maxRedirections: 5
     });
 
     if (statusCode !== 200) {
@@ -249,6 +258,62 @@ export class Fetcher {
         await unlink(temporaryTarball, {force: true});
       }
     }
+  }
+
+  /**
+   * Resolve the HEAD SHA for a GitHub repository.
+   */
+  async resolveHead(user, repo) {
+    const {statusCode, headers, body} = await request(`https://api.github.com/repos/${user}/${repo}/tarball`, {
+      method: 'HEAD',
+      headers: {'User-Agent': 'vlurp-cli'},
+      maxRedirections: 0
+    });
+
+    // Consume body to prevent leak
+    await body.dump();
+
+    // GitHub redirects to a URL containing the SHA
+    if (statusCode === 302 || statusCode === 301) {
+      const location = headers.location || '';
+      // URL format: .../{user}-{repo}-{sha}.tar.gz
+      const match = /\/([a-f\d]{40}|[a-f\d]{7,})\.tar\.gz/i.exec(location)
+        || /\/tarball\/([a-f\d]{7,})/i.exec(location);
+      if (match) {
+        return match[1];
+      }
+    }
+
+    // Fallback: use the git refs API
+    const {statusCode: refStatus, body: refBody} = await request(`https://api.github.com/repos/${user}/${repo}/git/ref/heads/main`, {
+      headers: {
+        'User-Agent': 'vlurp-cli',
+        Accept: 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (refStatus === 200) {
+      const data = await refBody.json();
+      return data.object?.sha || null;
+    }
+
+    await refBody.dump();
+
+    // Try master branch
+    const {statusCode: masterStatus, body: masterBody} = await request(`https://api.github.com/repos/${user}/${repo}/git/ref/heads/master`, {
+      headers: {
+        'User-Agent': 'vlurp-cli',
+        Accept: 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (masterStatus === 200) {
+      const data = await masterBody.json();
+      return data.object?.sha || null;
+    }
+
+    await masterBody.dump();
+    return null;
   }
 }
 

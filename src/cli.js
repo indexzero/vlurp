@@ -4,6 +4,8 @@ import {render} from 'ink';
 import React from 'react';
 import {FetchCommand} from './commands/fetch.js';
 import {BatchCommand} from './commands/batch.js';
+import {VerifyCommand} from './commands/verify.js';
+import {PinCommand} from './commands/pin.js';
 import {PRESETS} from './presets.js';
 
 const j = jack({
@@ -17,6 +19,14 @@ const j = jack({
     },
     preset: {
       description: 'Use a preset filter configuration (claude, skills, agents, docs, all-md, minimal)',
+      hint: 'name'
+    },
+    ref: {
+      description: 'Pin fetch to a specific git ref (commit SHA, tag, or branch)',
+      hint: 'sha|tag|branch'
+    },
+    as: {
+      description: 'Override output directory name (flatten path structure)',
       hint: 'name'
     }
   })
@@ -57,34 +67,37 @@ if (values.help) {
 Commands:
   vlurp <source>          Fetch a single repository
   vlurp batch <file>      Process a .vlurpfile
+  vlurp verify <path>     Verify file integrity against lineage records
+  vlurp pin [source]      Pin unpinned sources to current upstream HEAD
 
 Usage:
-  vlurp <user>/<repo>                    Fetch to ./<user>/<repo>
-  vlurp <user>/<repo> -d <root>          Fetch to <root>/<user>/<repo>
-  vlurp <url>                            Fetch GitHub/Gist URL to ./<user>/<repo>
-  vlurp <url> -d <root>                  Fetch to <root>/<user>/<repo>
-  vlurp batch <vlurpfile>                Process batch file
-  vlurp batch <vlurpfile> --dry-run      Preview batch operations
+  vlurp <user>/<repo>                           Fetch to ./<user>/<repo>
+  vlurp <user>/<repo> --ref <sha>               Fetch pinned to commit
+  vlurp <user>/<repo> --as <name> -d ./skills   Fetch to ./skills/<name>
+  vlurp <url> -d <root>                         Fetch to <root>/<user>/<repo>
+  vlurp batch <vlurpfile>                       Process batch file
+  vlurp verify ./skills                         Check files against .vlurp.jsonl
+  vlurp pin                                     Pin all unpinned in .vlurpfile
+  vlurp pin user/repo                           Pin a specific source
 
 Presets:
 ${Object.entries(PRESETS).map(([name, config]) =>
   `  ${name.padEnd(10)} ${config.description}`).join('\n')}
 
 Examples:
-  vlurp facebook/react                   Fetch with default filters
-  vlurp nodejs/node --filter "*.js"      Fetch only JavaScript files
-  vlurp user/repo --filter "src/**"      Fetch src folder
-  vlurp user/repo --force                Force overwrite existing directory
-  vlurp user/repo --preset claude        Use claude preset filters
-  vlurp user/repo --preset skills        Use skills preset filters
-  vlurp user/repo --auto                 Auto-detect structure
-  vlurp batch .vlurpfile                 Process batch file
-  vlurp batch .vlurpfile --dry-run       Preview batch operations
+  vlurp user/repo --ref abc1234           Fetch pinned to commit
+  vlurp user/repo --as myskill -d ./sk    Fetch to ./sk/myskill
+  vlurp user/repo --preset claude         Use claude preset filters
+  vlurp user/repo --auto                  Auto-detect structure
+  vlurp batch .vlurpfile                  Process batch file
+  vlurp batch .vlurpfile --dry-run        Preview batch operations
+  vlurp verify skills/                    Verify integrity
+  vlurp pin                               Pin all sources
 
 .vlurpfile Format:
   # Comments start with #
-  vlurp user/repo -d ./vlurp
-  vlurp user/repo -d ./vlurp --filter "claude/**"
+  vlurp user/repo -d ./vlurp --ref abc1234
+  vlurp user/repo -d ./vlurp --filter "claude/**" --as myname
   vlurp user/repo --preset skills
 
 Options:
@@ -100,37 +113,63 @@ if (positionals.length === 0) {
 const command = positionals[0];
 const rootDir = values.d;
 const {force, auto, preset, quiet} = values;
+const {ref} = values;
+const asName = values.as;
 const dryRun = values['dry-run'];
 
 // Handle subcommands
-if (command === 'batch') {
-  const vlurpfile = positionals[1];
-  if (!vlurpfile) {
-    console.error('Error: batch command requires a .vlurpfile path');
-    console.error('Usage: vlurp batch <vlurpfile>');
-    process.exit(1);
+switch (command) {
+  case 'batch': {
+    const vlurpfile = positionals[1];
+    if (!vlurpfile) {
+      console.error('Error: batch command requires a .vlurpfile path');
+      console.error('Usage: vlurp batch <vlurpfile>');
+      process.exit(1);
+    }
+
+    render(React.createElement(BatchCommand, {
+      vlurpfile, dryRun, force, quiet
+    }));
+
+    break;
   }
 
-  render(React.createElement(BatchCommand, {
-    vlurpfile, dryRun, force, quiet
-  }));
-} else {
+  case 'verify': {
+    const targetPath = positionals[1] || '.';
+    render(React.createElement(VerifyCommand, {targetPath}));
+
+    break;
+  }
+
+  case 'pin': {
+    const source = positionals[1] || null;
+    const vlurpfilePath = positionals[2] || null;
+    render(React.createElement(PinCommand, {source, vlurpfilePath}));
+
+    break;
+  }
+
+  default: {
   // Regular fetch command
-  const source = command;
+    const source = command;
 
-  // Resolve filters from preset or explicit filters
-  let filters = values.filter;
-  if (preset && PRESETS[preset]) {
-    filters = PRESETS[preset].filters;
+    // Resolve filters from preset or explicit filters
+    let filters = values.filter;
+    if (preset && PRESETS[preset]) {
+      filters = PRESETS[preset].filters;
+    }
+
+    render(React.createElement(FetchCommand, {
+      source,
+      rootDir,
+      filters,
+      force,
+      auto,
+      dryRun,
+      quiet,
+      ref,
+      asName,
+      preset
+    }));
   }
-
-  render(React.createElement(FetchCommand, {
-    source,
-    rootDir,
-    filters,
-    force,
-    auto,
-    dryRun,
-    quiet
-  }));
 }

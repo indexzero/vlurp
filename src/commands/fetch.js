@@ -6,8 +6,9 @@ import Spinner from 'ink-spinner';
 import {parseSource, validateUrl, fetchRepository} from '../remote.js';
 import {detectStructure} from '../detector.js';
 import {buildTreeString} from '../tree.js';
+import {hashDirectory, createLineageRecord, appendLineage} from '../lineage.js';
 
-export function FetchCommand({source, rootDir, filters, force, auto, dryRun, quiet}) {
+export function FetchCommand({source, rootDir, filters, force, auto, dryRun, quiet, ref, asName, preset}) {
   const [status, setStatus] = useState('locating');
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
@@ -18,7 +19,7 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
       try {
         // Parse the source input
         setStatus('locating');
-        const parsed = parseSource(source);
+        const parsed = parseSource(source, {ref});
 
         // Validate if it's a URL
         if (parsed.type === 'url') {
@@ -42,7 +43,7 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
         }
 
         // Resolve the target directory
-        const targetPath = resolveTargetPath(parsed.user, parsed.repo, rootDir);
+        const targetPath = resolveTargetPath(parsed.user, parsed.repo, rootDir, asName);
 
         // Dry run - just show what would happen
         if (dryRun) {
@@ -51,15 +52,43 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
             repo: parsed.repo,
             path: targetPath,
             filters: effectiveFilters,
-            detectedPatterns
+            detectedPatterns,
+            ref: ref || null,
+            asName: asName || null
           });
           setStatus('dry-run');
           return;
         }
 
+        // Warn if not pinned
+        if (!ref && !quiet) {
+          setStatus('vlurping');
+        } else {
+          setStatus('vlurping');
+        }
+
         // Vlurp the repository
-        setStatus('vlurping');
         const {fileCount} = await fetchRepository(parsed.tarballUrl, targetPath, effectiveFilters, {force});
+
+        // Generate lineage record
+        // File paths are relative to targetPath; we store them as-is
+        // since the JSONL lives at the rootDir level and the record's
+        // source identity (user/repo or --as) provides the path context
+        const rawFiles = await hashDirectory(targetPath);
+        const lineageRecord = createLineageRecord({
+          source: `${parsed.user}/${parsed.repo}`,
+          ref: ref || null,
+          refType: ref ? 'commit' : null,
+          filters: effectiveFilters,
+          preset: preset || null,
+          asName: asName || null,
+          files: rawFiles
+        });
+
+        // Write lineage to .vlurp.jsonl at the rootDir level
+        const lineageDir = rootDir ? resolve(rootDir) : process.cwd();
+        const lineagePath = join(lineageDir, '.vlurp.jsonl');
+        await appendLineage(lineagePath, lineageRecord);
 
         // Generate tree output
         const tree = await buildTreeString(targetPath);
@@ -71,7 +100,11 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
           path: targetPath,
           filterCount: effectiveFilters.length,
           fileCount,
-          detectedPatterns
+          detectedPatterns,
+          ref: ref || null,
+          asName: asName || null,
+          unpinned: !ref,
+          lineagePath
         });
         setStatus('complete');
       } catch (err) {
@@ -81,13 +114,13 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
     }
 
     performFetch();
-  }, [source, rootDir, filters, force, auto, dryRun]);
+  }, [source, rootDir, filters, force, auto, dryRun, ref, asName, preset]);
 
   if (status === 'error') {
     return React.createElement(
       Box,
       {flexDirection: 'column'},
-      React.createElement(Text, {color: 'red'}, `✗ Error: ${error}`)
+      React.createElement(Text, {color: 'red'}, `Error: ${error}`)
     );
   }
 
@@ -95,7 +128,10 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
     return React.createElement(
       Box,
       {flexDirection: 'column'},
-      React.createElement(Text, {color: 'yellow', bold: true}, `📋 Dry run - would fetch ${result.user}/${result.repo}`),
+      React.createElement(Text, {color: 'yellow', bold: true}, `Dry run - would fetch ${result.user}/${result.repo}`),
+      result.ref && React.createElement(Text, {color: 'green'}, `  Pinned: ${result.ref}`),
+      !result.ref && React.createElement(Text, {color: 'yellow'}, '  Warning: not pinned (mutable upstream)'),
+      result.asName && React.createElement(Text, {color: 'cyan'}, `  As: ${result.asName}`),
       React.createElement(Text, {color: 'gray'}, `  Target: ${result.path}`),
       result.detectedPatterns?.length > 0
       && React.createElement(Text, {color: 'cyan'}, `  Auto-detected: ${result.detectedPatterns.join(', ')}`),
@@ -117,13 +153,16 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
     return React.createElement(
       Box,
       {flexDirection: 'column'},
-      React.createElement(Text, {color: 'green'}, `✓ Successfully vlurped ${result.user}/${result.repo}`),
+      React.createElement(Text, {color: 'green'}, `vlurped ${result.user}/${result.repo}`),
+      result.ref && React.createElement(Text, {color: 'green'}, `  Pinned: ${result.ref}`),
+      result.unpinned && React.createElement(Text, {color: 'yellow'}, '  Warning: not pinned (mutable upstream)'),
       React.createElement(Text, {color: 'gray'}, `  Location: ${result.path}`),
+      React.createElement(Text, {color: 'gray'}, `  Lineage: ${result.lineagePath}`),
       result.detectedPatterns?.length > 0
       && React.createElement(Text, {color: 'cyan'}, `  Auto-detected: ${result.detectedPatterns.join(', ')}`),
       result.filterCount > 0 && React.createElement(Text, {color: 'gray'}, `  Filters: ${result.filterCount} pattern(s) applied`),
       treeOutput && !quiet && React.createElement(Box, {marginTop: 1}, React.createElement(Text, null, treeOutput)),
-      React.createElement(Text, {color: 'cyan', marginTop: 1}, `✨ vlurped ${result.fileCount} files to ${result.path}`)
+      React.createElement(Text, {color: 'cyan', marginTop: 1}, `vlurped ${result.fileCount} files to ${result.path}`)
     );
   }
 
@@ -139,7 +178,16 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
   );
 }
 
-export function resolveTargetPath(user, repo, rootDir) {
+export function resolveTargetPath(user, repo, rootDir, asName) {
+  // If --as is provided, use that as the directory name
+  if (asName) {
+    if (rootDir) {
+      return resolve(rootDir, asName);
+    }
+
+    return resolve(process.cwd(), asName);
+  }
+
   const userRepoPath = join(user, repo);
 
   if (rootDir) {

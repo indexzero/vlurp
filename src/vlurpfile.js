@@ -52,6 +52,8 @@ function parseVlurpLine(line) {
     rootDir: null,
     filters: [],
     preset: null,
+    ref: null,
+    as: null,
     force: false
   };
 
@@ -68,13 +70,21 @@ function parseVlurpLine(line) {
       if (PRESETS[entry.preset]) {
         entry.filters = [...PRESETS[entry.preset].filters];
       }
+    } else if (arg === '--ref' && args[i + 1]) {
+      entry.ref = args[++i];
+    } else if (arg === '--as' && args[i + 1]) {
+      entry.as = args[++i];
     } else if (arg === '-f' || arg === '--force') {
       entry.force = true;
     }
   }
 
   // Calculate target path
-  if (entry.rootDir) {
+  if (entry.as && entry.rootDir) {
+    entry.targetPath = resolve(entry.rootDir, entry.as);
+  } else if (entry.as) {
+    entry.targetPath = resolve(entry.as);
+  } else if (entry.rootDir) {
     const parts = source.split('/');
     if (parts.length >= 2) {
       const [user, repo] = parts;

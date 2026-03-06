@@ -9,3 +9,11 @@ export {
 export {PRESETS} from './presets.js';
 export {parseVlurpfile} from './vlurpfile.js';
 export {detectStructure} from './detector.js';
+export {
+  hashFile,
+  hashDirectory,
+  createLineageRecord,
+  appendLineage,
+  readLineage,
+  verifyFiles
+} from './lineage.js';
