@@ -1,3 +1,24 @@
-export { Validator, validateUrl } from './validator.js';
-export { Parser, parseSource } from './parser.js';
-export { Fetcher, fetchRepository } from './fetcher.js';
+export {
+  Validator,
+  validateUrl,
+  Parser,
+  parseSource,
+  Fetcher,
+  fetchRepository
+} from './remote.js';
+export {PRESETS} from './presets.js';
+export {parseVlurpfile} from './vlurpfile.js';
+export {detectStructure} from './detector.js';
+export {
+  hashFile,
+  hashDirectory,
+  createLineageRecord,
+  appendLineage,
+  readLineage,
+  verifyFiles
+} from './lineage.js';
+export {
+  scanFileContent,
+  scanDirectory,
+  summarizeScan
+} from './scanner.js';

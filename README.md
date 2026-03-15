@@ -45,6 +45,47 @@ vlurp whoever/cool-configs --filter "lib/**" --filter "doc/**"
 
 # vlurp only markdown files
 vlurp user/repo --filter "*.md"
+
+# Use a preset instead of manual filters
+vlurp user/repo --preset claude
+vlurp user/repo --preset skills
+
+# Auto-detect repo structure and apply appropriate filters
+vlurp user/repo --auto
+
+# Preview what would be fetched
+vlurp user/repo --dry-run
+
+# Process a .vlurpfile
+vlurp batch .vlurpfile
+vlurp batch .vlurpfile --dry-run
+```
+
+## Presets
+
+| Preset | Description | Filters |
+|--------|-------------|---------|
+| `claude` | Claude Code config | `.claude/**`, `CLAUDE.md` |
+| `skills` | Agent skills | `skills/**`, `SKILL.md`, `**/*.md` |
+| `agents` | Agent definitions | `agents/**`, `commands/**`, `**/*.md` |
+| `docs` | Documentation | `**/*.md` (excluding boilerplate) |
+| `all-md` | All markdown | `**/*.md` |
+| `minimal` | Minimal claude | `.claude/**`, `CLAUDE.md` only |
+
+## Batch Processing
+
+Process multiple repos from a `.vlurpfile`:
+
+```bash
+vlurp batch .vlurpfile
+```
+
+Example `.vlurpfile`:
+```bash
+# Comments start with #
+vlurp anthropics/skills -d ./vlurp --preset skills
+vlurp obra/superpowers -d ./vlurp --preset claude
+vlurp user/repo -d ./vlurp --filter "docs/**"
 ```
 
 ## Features
