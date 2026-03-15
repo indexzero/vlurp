@@ -149,3 +149,4 @@ output/
 SPEC*.md
 PLAN*.md
 .claude/
+.DS_Store
