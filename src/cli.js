@@ -10,6 +10,8 @@ import {OutdatedCommand} from './commands/outdated.js';
 import {DiffCommand} from './commands/diff.js';
 import {ScanCommand} from './commands/scan.js';
 import {CatalogCommand} from './commands/catalog.js';
+import {UpgradeCommand} from './commands/upgrade.js';
+import {CatalogDiffCommand} from './commands/catalog-diff.js';
 import {PRESETS} from './presets.js';
 
 const j = jack({
@@ -32,6 +34,10 @@ const j = jack({
     as: {
       description: 'Override output directory name (flatten path structure)',
       hint: 'name'
+    },
+    vlurpfile: {
+      description: 'Path to .vlurpfile (for upgrade command)',
+      hint: 'path'
     }
   })
   .optList({
@@ -60,6 +66,9 @@ const j = jack({
     force: {
       description: 'Force overwrite existing directories without prompting',
       short: 'f'
+    },
+    json: {
+      description: 'Output in JSON format (for catalog-diff)'
     }
   });
 
@@ -71,12 +80,14 @@ if (values.help) {
 Commands:
   vlurp <source>          Fetch a single repository
   vlurp batch <file>      Process a .vlurpfile
+  vlurp upgrade [source]  Upgrade outdated sources to upstream HEAD
   vlurp verify <path>     Verify file integrity against lineage records
   vlurp pin [source]      Pin unpinned sources to current upstream HEAD
   vlurp outdated [file]   Check for upstream changes
   vlurp diff <source>     Show content diff against upstream
   vlurp scan <path>       Analyze content for injection/escalation patterns
   vlurp catalog <path>    Generate catalog.json of indexed skills
+  vlurp catalog-diff      Compare two catalog snapshots
 
 Usage:
   vlurp <user>/<repo>                           Fetch to ./<user>/<repo>
@@ -84,6 +95,8 @@ Usage:
   vlurp <user>/<repo> --as <name> -d ./skills   Fetch to ./skills/<name>
   vlurp <url> -d <root>                         Fetch to <root>/<user>/<repo>
   vlurp batch <vlurpfile>                       Process batch file
+  vlurp upgrade                                 Upgrade all outdated sources
+  vlurp upgrade user/repo                       Upgrade specific source
   vlurp verify ./skills                         Check files against .vlurp.jsonl
   vlurp pin                                     Pin all unpinned in .vlurpfile
   vlurp outdated .vlurpfile                     Check what has changed upstream
@@ -100,12 +113,18 @@ Examples:
   vlurp user/repo --auto                  Auto-detect structure
   vlurp batch .vlurpfile                  Process batch file
   vlurp batch .vlurpfile --dry-run        Preview batch operations
+  vlurp upgrade                           Upgrade all outdated
+  vlurp upgrade user/repo                 Upgrade specific source
+  vlurp upgrade --dry-run                 Preview upgrades
   vlurp verify skills/                    Verify integrity
   vlurp pin                               Pin all sources
   vlurp outdated .vlurpfile               Check upstream
   vlurp diff user/repo -d ./skills        Content diff
   vlurp scan skills/                      Scan for threats
   vlurp catalog skills/                   Build catalog
+  vlurp catalog-diff                      Diff prev vs current catalog
+  vlurp catalog-diff old.json new.json    Diff explicit catalogs
+  vlurp catalog-diff --json               Machine-readable output
 
 .vlurpfile Format:
   # Comments start with #
@@ -169,6 +188,17 @@ switch (command) {
     break;
   }
 
+  case 'upgrade': {
+    const upgradeSource = positionals[1] || null;
+    render(React.createElement(UpgradeCommand, {
+      vlurpfilePath: values.vlurpfile || null,
+      source: upgradeSource,
+      dryRun
+    }));
+
+    break;
+  }
+
   case 'scan': {
     const scanPath = positionals[1] || '.';
     render(React.createElement(ScanCommand, {targetPath: scanPath}));
@@ -179,6 +209,18 @@ switch (command) {
   case 'catalog': {
     const catalogPath = positionals[1] || '.';
     render(React.createElement(CatalogCommand, {targetPath: catalogPath}));
+
+    break;
+  }
+
+  case 'catalog-diff': {
+    const cdOldPath = positionals[1] || null;
+    const cdNewPath = positionals[2] || null;
+    render(React.createElement(CatalogDiffCommand, {
+      oldPath: cdOldPath,
+      newPath: cdNewPath,
+      json: values.json
+    }));
 
     break;
   }
