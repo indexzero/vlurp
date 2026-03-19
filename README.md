@@ -1,106 +1,196 @@
-# `vlurp === (vibes && slurp) // true`
+```
+  |   ._._
+\/||_|| |_)
+        |
+```
 
-A fun CLI tool to quickly slurp vibe(ish) files from GitHub repositories and gists.
+Fetch text from GitHub. Pin to commits. Hash every file. Scan for threats. Diff before you accept.
 
-## Installation
+vlurp is not a package manager. It does not resolve dependencies, run install scripts, or manage a registry. It fetches files from GitHub repos, tracks where they came from, and tells you what they do -- so you can make informed trust decisions about text that becomes AI agent instructions.
+
+## Install
 
 ```sh
-# Install globally
 npm install -g vlurp
+```
 
-# Or with pnpm
-pnpm add -g vlurp
+or run directly:
 
-# Or run directly with npx
+```sh
 npx vlurp <user>/<repo>
 ```
 
-## Usage
+## Quick start
+
+Fetch a repo's Claude config:
+
+```
+$ vlurp eyaltoledano/claude-task-master -d ./vlurp
+
+  eyaltoledano/claude-task-master@HEAD
+  2 files
+  ./vlurp/eyaltoledano/claude-task-master/
+```
+
+Fetch skill files pinned to a commit, flattened into a named directory:
+
+```
+$ vlurp obra/superpowers -d .claude/skills --preset skills --ref e4f5a6b
+
+  obra/superpowers@e4f5a6b
+  22 files (preset: skills)
+  .claude/skills/obra/superpowers/
+```
+
+Fetch a specific directory from deep inside a repo:
+
+```
+$ vlurp whilp/dotfiles -d .claude/skills \
+    --filter ".claude/skills/duckdb-json/**" --as duckdb
+
+  whilp/dotfiles@HEAD
+  3 files
+  .claude/skills/duckdb/
+```
+
+Check that nothing has been modified since you fetched:
+
+```
+$ vlurp verify .claude/skills
+
+  obra/superpowers/skills/tdd/SKILL.md                ok  sha256:e3b0c442
+  obra/superpowers/skills/verify/SKILL.md             ok  sha256:7f83b165
+  duckdb/SKILL.md                                     ok  sha256:13681909
+
+  25 files verified, 0 modified
+```
+
+See what a skill tells your agent to do before you inject it:
+
+```
+$ vlurp scan .claude/skills
+
+  obra/superpowers/skills/tdd/SKILL.md
+    ok   No injection patterns
+    warn Bash (8 refs), Edit (4 refs)
+
+  duckdb/SKILL.md
+    ok   No injection patterns
+    warn Bash (11 refs)
+    warn References external commands: duckdb
+
+  25 files, 0 issues, 12 warnings
+  tool surface: Bash (31), Read (8), Edit (6)
+  command surface: duckdb, git, npm
+```
+
+Upgrade when upstream changes, with a structured diff of what's new:
+
+```
+$ vlurp upgrade --dry-run
+
+  obra/superpowers  e4f5a6b -> 9c8b7a6
+
+    tdd            1.0.0 -> 1.0.1
+      tools:       (unchanged)
+      files:       (unchanged)
+
+    debug          (new skill)
+      tools:       Bash, Read, Grep
+
+  1 source, 8 skills (1 new, 1 changed, 6 unchanged)
+```
+
+## Batch
+
+Process multiple repos from a `.vlurpfile`:
 
 ```sh
-# vlurp a repository using user/repo format
-vlurp cool-repo/has-agents
-# → Creates ./cool-repo/has-agents
+# .vlurpfile
 
-# vlurp to a specific directory
-vlurp cool-repo/has-agents -d ~/projects
-# → Creates ~/projects/cool-repo/has-agents
+# Official Anthropic skills
+vlurp anthropics/skills -d ./vlurp --filter "skills/**" --filter "template/**"
 
-# vlurp using a GitHub URL
-vlurp https://github.com/whoever/cool-configs
-# → Creates ./whoever/cool-configs
+# obra/superpowers -- Core agent patterns
+vlurp obra/superpowers -d ./vlurp --filter "skills/**" --filter ".claude/**"
 
-# vlurp a GitHub Gist
-vlurp https://gist.github.com/user/abc123def456
-# → Creates ./user/abc123def456
+# DuckDB skills from assorted dotfiles
+vlurp whilp/dotfiles -d ./vlurp --filter ".claude/skills/duckdb-json/**"
+vlurp PovertyAction/ipa-research-data-science-hub -d ./vlurp --filter ".claude/skills/duckdb/**"
 
-# Show help
-vlurp --help
+# Microsoft Amplifier -- multi-agent framework
+vlurp microsoft/amplifier -d ./vlurp --filter "**/*.md"
+```
 
-# Filter files (default: .claude/** and CLAUDE.md)
-vlurp cool-repo/has-agents --filter "*.ts" --filter "*.tsx"
+```
+$ vlurp batch .vlurpfile
+```
 
-# vlurp only specific directories
-vlurp whoever/cool-configs --filter "lib/**" --filter "doc/**"
+## Commands
 
-# vlurp only markdown files
-vlurp user/repo --filter "*.md"
+```
+vlurp <source>                       Fetch from a GitHub repo or gist
+vlurp batch <vlurpfile>              Process a .vlurpfile (batch fetch)
+vlurp verify <path>                  Check file integrity against lineage
+vlurp pin [source]                   Pin sources to current upstream HEAD
+vlurp outdated [vlurpfile]           Check for upstream changes
+vlurp diff <source>                  Content diff against upstream
+vlurp scan <path>                    Analyze for injection/escalation patterns
+vlurp catalog <path>                 Generate skill index (catalog.json)
+vlurp upgrade [source]               Upgrade outdated sources
+vlurp catalog-diff [old] [new]       Compare catalog snapshots
+```
 
-# Use a preset instead of manual filters
-vlurp user/repo --preset claude
-vlurp user/repo --preset skills
+## Flags
 
-# Auto-detect repo structure and apply appropriate filters
-vlurp user/repo --auto
-
-# Preview what would be fetched
-vlurp user/repo --dry-run
-
-# Process a .vlurpfile
-vlurp batch .vlurpfile
-vlurp batch .vlurpfile --dry-run
+```
+-d <dir>              Root output directory
+--ref <sha|tag>       Pin to a git ref (commit, tag, branch)
+--as <name>           Flatten output into named directory
+--preset <name>       Use a preset filter set
+--filter <glob>       Glob pattern for file matching (repeatable)
+--auto                Auto-detect repo structure
+--dry-run, -n         Preview without writing
+--force, -f           Overwrite without prompting
+--json                Machine-readable output (catalog-diff)
+--vlurpfile <path>    Explicit .vlurpfile path (upgrade)
 ```
 
 ## Presets
 
-| Preset | Description | Filters |
-|--------|-------------|---------|
-| `claude` | Claude Code config | `.claude/**`, `CLAUDE.md` |
-| `skills` | Agent skills | `skills/**`, `SKILL.md`, `**/*.md` |
-| `agents` | Agent definitions | `agents/**`, `commands/**`, `**/*.md` |
-| `docs` | Documentation | `**/*.md` (excluding boilerplate) |
-| `all-md` | All markdown | `**/*.md` |
-| `minimal` | Minimal claude | `.claude/**`, `CLAUDE.md` only |
-
-## Batch Processing
-
-Process multiple repos from a `.vlurpfile`:
-
-```bash
-vlurp batch .vlurpfile
+```
+claude      .claude/**, CLAUDE.md
+skills      skills/**, SKILL.md, **/*.md
+agents      agents/**, commands/**, **/*.md
+docs        **/*.md (excluding boilerplate)
+all-md      **/*.md
+minimal     .claude/**, CLAUDE.md only
 ```
 
-Example `.vlurpfile`:
-```bash
-# Comments start with #
-vlurp anthropics/skills -d ./vlurp --preset skills
-vlurp obra/superpowers -d ./vlurp --preset claude
-vlurp user/repo -d ./vlurp --filter "docs/**"
+## Feature guides
+
+| Guide | Covers |
+|-------|--------|
+| **[Fetching & Filtering](doc/fetch.md)** | Sources, globs, presets, `--ref`, `--as`, `--auto` |
+| **[The .vlurpfile](doc/vlurpfile.md)** | Batch processing, manifest format, intent vs reality |
+| **[Supply Chain Security](doc/supply-chain.md)** | Lineage, verify, pin, scan, threat model |
+| **[Upgrades & Change Detection](doc/upgrade.md)** | outdated, diff, upgrade, catalog, catalog-diff |
+
+## Data files
+
+```
+.vlurpfile       Fetch intent. One vlurp command per line. Human-authored.
+.vlurp.jsonl     Lineage. SHA-256 hashes, provenance, scan results. Machine-generated.
+.vlurp.sigstore  Sigstore attestation bundle (optional). Cryptographic proof of fetch.
+catalog.json     Derived skill index. Names, tools, commands, supporting files.
 ```
 
-## Features
-
-- 🚀 Fast - Downloads tarballs instead of cloning entire git history
-- 📦 Lightweight - Minimal dependencies
-- 🎨 Clean output with progress indicators
-- 🔒 Only works with github.com and gist.github.com
-- 🌈 Simple - Just pass a repo or URL and go!
-- 🎯 Selective - Filter files with glob patterns (defaults to .claude/** and CLAUDE.md)
+The `.vlurpfile` is intent -- what you want. The `.vlurp.jsonl` is reality -- what you got. Both are committed to git. Both are reviewed in PRs. Separately.
 
 ## Contributing
 
-Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to contribute to this project.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Code of Conduct
+## License
 
-This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+[Apache-2.0](LICENSE)
