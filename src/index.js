@@ -7,7 +7,7 @@ export {
   fetchRepository
 } from './remote.js';
 export {PRESETS} from './presets.js';
-export {parseVlurpfile} from './vlurpfile.js';
+export {parseVlurpfile, updateRef, updateRefs} from './vlurpfile.js';
 export {detectStructure} from './detector.js';
 export {
   hashFile,
@@ -22,3 +22,8 @@ export {
   scanDirectory,
   summarizeScan
 } from './scanner.js';
+export {buildCatalog} from './catalog.js';
+export {
+  diffCatalogs,
+  formatCatalogDiff
+} from './catalog-diff.js';

@@ -33,6 +33,92 @@ export function parseVlurpfile(content) {
 }
 
 /**
+ * Update the --ref value for a specific source in vlurpfile content.
+ * Preserves comments, blank lines, and argument ordering.
+ * If the entry has no --ref, appends one.
+ * Returns the updated content string.
+ */
+export function updateRef(content, source, newRef) {
+  const lines = content.split('\n');
+  const result = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Preserve comments and blank lines as-is
+    if (!trimmed || trimmed.startsWith('#')) {
+      result.push(line);
+      continue;
+    }
+
+    // Check if this line matches the target source
+    const lineSource = extractSource(trimmed);
+    if (lineSource !== source) {
+      result.push(line);
+      continue;
+    }
+
+    // This line matches -- update or insert --ref
+    result.push(replaceRef(line, newRef));
+  }
+
+  return result.join('\n');
+}
+
+/**
+ * Update --ref values for multiple sources at once.
+ * `updates` is a Map or object of { source: newRef }.
+ * Returns the updated content string.
+ */
+export function updateRefs(content, updates) {
+  const map = updates instanceof Map ? updates : new Map(Object.entries(updates));
+  const lines = content.split('\n');
+  const result = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!trimmed || trimmed.startsWith('#')) {
+      result.push(line);
+      continue;
+    }
+
+    const lineSource = extractSource(trimmed);
+    if (lineSource && map.has(lineSource)) {
+      result.push(replaceRef(line, map.get(lineSource)));
+    } else {
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
+}
+
+/**
+ * Extract the source (e.g. "user/repo") from a vlurpfile line.
+ */
+function extractSource(line) {
+  const command = line.startsWith('vlurp ') ? line.slice(6).trim() : line;
+  const args = parseArgs(command);
+  return args.length > 0 ? args[0] : null;
+}
+
+/**
+ * Replace or insert --ref in a single vlurpfile line.
+ */
+function replaceRef(line, newRef) {
+  // Match existing --ref and its value (handles quoted and unquoted)
+  const refPattern = /--ref\s+(?:"[^"]*"|\S+)/;
+  if (refPattern.test(line)) {
+    return line.replace(refPattern, `--ref ${newRef}`);
+  }
+
+  // No existing --ref -- append before trailing newline/whitespace
+  const trimmed = line.trimEnd();
+  return trimmed + ` --ref ${newRef}`;
+}
+
+/**
  * Parses a single vlurp command line.
  */
 function parseVlurpLine(line) {
