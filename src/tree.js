@@ -1,5 +1,5 @@
-import {readdir} from 'node:fs/promises';
-import {join, basename} from 'node:path';
+import { readdir } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import archy from 'archy';
 
 async function buildTree(dir, name = null) {
@@ -7,17 +7,19 @@ async function buildTree(dir, name = null) {
 
   try {
     // Use withFileTypes to avoid stat calls
-    const entries = await readdir(dir, {withFileTypes: true});
+    const entries = await readdir(dir, { withFileTypes: true });
 
-    const children = await Promise.all(entries
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(async entry => {
-        if (entry.isDirectory()) {
-          return buildTree(join(dir, entry.name), entry.name);
-        }
+    const children = await Promise.all(
+      entries
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(async entry => {
+          if (entry.isDirectory()) {
+            return buildTree(join(dir, entry.name), entry.name);
+          }
 
-        return entry.name;
-      }));
+          return entry.name;
+        })
+    );
 
     return {
       label,

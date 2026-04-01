@@ -1,14 +1,25 @@
+import { join, resolve } from 'node:path';
 import process from 'node:process';
-import {resolve, join} from 'node:path';
-import React, {useState, useEffect} from 'react';
-import {Box, Text} from 'ink';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import {parseSource, validateUrl, fetchRepository} from '../remote.js';
-import {detectStructure} from '../detector.js';
-import {buildTreeString} from '../tree.js';
-import {hashDirectory, createLineageRecord, appendLineage} from '../lineage.js';
+import React, { useEffect, useState } from 'react';
+import { detectStructure } from '../detector.js';
+import { appendLineage, createLineageRecord, hashDirectory } from '../lineage.js';
+import { fetchRepository, parseSource, validateUrl } from '../remote.js';
+import { buildTreeString } from '../tree.js';
 
-export function FetchCommand({source, rootDir, filters, force, auto, dryRun, quiet, ref, asName, preset}) {
+export function FetchCommand({
+  source,
+  rootDir,
+  filters,
+  force,
+  auto,
+  dryRun,
+  quiet,
+  ref,
+  asName,
+  preset
+}) {
   const [status, setStatus] = useState('locating');
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
@@ -19,7 +30,7 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
       try {
         // Parse the source input
         setStatus('locating');
-        const parsed = parseSource(source, {ref});
+        const parsed = parseSource(source, { ref });
 
         // Validate if it's a URL
         if (parsed.type === 'url') {
@@ -68,7 +79,12 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
         }
 
         // Vlurp the repository
-        const {fileCount} = await fetchRepository(parsed.tarballUrl, targetPath, effectiveFilters, {force});
+        const { fileCount } = await fetchRepository(
+          parsed.tarballUrl,
+          targetPath,
+          effectiveFilters,
+          { force }
+        );
 
         // Generate lineage record
         // File paths are relative to targetPath; we store them as-is
@@ -114,29 +130,46 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
     }
 
     performFetch();
-  }, [source, rootDir, filters, force, auto, dryRun, ref, asName, preset]);
+  }, [source, rootDir, filters, force, auto, dryRun, ref, asName, preset, quiet]);
 
   if (status === 'error') {
     return React.createElement(
       Box,
-      {flexDirection: 'column'},
-      React.createElement(Text, {color: 'red'}, `Error: ${error}`)
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'red' }, `Error: ${error}`)
     );
   }
 
   if (status === 'dry-run') {
     return React.createElement(
       Box,
-      {flexDirection: 'column'},
-      React.createElement(Text, {color: 'yellow', bold: true}, `Dry run - would fetch ${result.user}/${result.repo}`),
-      result.ref && React.createElement(Text, {color: 'green'}, `  Pinned: ${result.ref}`),
-      !result.ref && React.createElement(Text, {color: 'yellow'}, '  Warning: not pinned (mutable upstream)'),
-      result.asName && React.createElement(Text, {color: 'cyan'}, `  As: ${result.asName}`),
-      React.createElement(Text, {color: 'gray'}, `  Target: ${result.path}`),
-      result.detectedPatterns?.length > 0
-      && React.createElement(Text, {color: 'cyan'}, `  Auto-detected: ${result.detectedPatterns.join(', ')}`),
-      React.createElement(Text, {color: 'gray'}, `  Filters: ${result.filters.slice(0, 5).join(', ')}${result.filters.length > 5 ? '...' : ''}`),
-      React.createElement(Text, {color: 'gray', marginTop: 1}, '\nRun without --dry-run to execute.')
+      { flexDirection: 'column' },
+      React.createElement(
+        Text,
+        { color: 'yellow', bold: true },
+        `Dry run - would fetch ${result.user}/${result.repo}`
+      ),
+      result.ref && React.createElement(Text, { color: 'green' }, `  Pinned: ${result.ref}`),
+      !result.ref &&
+        React.createElement(Text, { color: 'yellow' }, '  Warning: not pinned (mutable upstream)'),
+      result.asName && React.createElement(Text, { color: 'cyan' }, `  As: ${result.asName}`),
+      React.createElement(Text, { color: 'gray' }, `  Target: ${result.path}`),
+      result.detectedPatterns?.length > 0 &&
+        React.createElement(
+          Text,
+          { color: 'cyan' },
+          `  Auto-detected: ${result.detectedPatterns.join(', ')}`
+        ),
+      React.createElement(
+        Text,
+        { color: 'gray' },
+        `  Filters: ${result.filters.slice(0, 5).join(', ')}${result.filters.length > 5 ? '...' : ''}`
+      ),
+      React.createElement(
+        Text,
+        { color: 'gray', marginTop: 1 },
+        '\nRun without --dry-run to execute.'
+      )
     );
   }
 
@@ -144,7 +177,7 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
     return React.createElement(
       Box,
       null,
-      React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
+      React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
       React.createElement(Text, null, ' Auto-detecting repository structure...')
     );
   }
@@ -152,29 +185,45 @@ export function FetchCommand({source, rootDir, filters, force, auto, dryRun, qui
   if (status === 'complete') {
     return React.createElement(
       Box,
-      {flexDirection: 'column'},
-      React.createElement(Text, {color: 'green'}, `vlurped ${result.user}/${result.repo}`),
-      result.ref && React.createElement(Text, {color: 'green'}, `  Pinned: ${result.ref}`),
-      result.unpinned && React.createElement(Text, {color: 'yellow'}, '  Warning: not pinned (mutable upstream)'),
-      React.createElement(Text, {color: 'gray'}, `  Location: ${result.path}`),
-      React.createElement(Text, {color: 'gray'}, `  Lineage: ${result.lineagePath}`),
-      result.detectedPatterns?.length > 0
-      && React.createElement(Text, {color: 'cyan'}, `  Auto-detected: ${result.detectedPatterns.join(', ')}`),
-      result.filterCount > 0 && React.createElement(Text, {color: 'gray'}, `  Filters: ${result.filterCount} pattern(s) applied`),
-      treeOutput && !quiet && React.createElement(Box, {marginTop: 1}, React.createElement(Text, null, treeOutput)),
-      React.createElement(Text, {color: 'cyan', marginTop: 1}, `vlurped ${result.fileCount} files to ${result.path}`)
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'green' }, `vlurped ${result.user}/${result.repo}`),
+      result.ref && React.createElement(Text, { color: 'green' }, `  Pinned: ${result.ref}`),
+      result.unpinned &&
+        React.createElement(Text, { color: 'yellow' }, '  Warning: not pinned (mutable upstream)'),
+      React.createElement(Text, { color: 'gray' }, `  Location: ${result.path}`),
+      React.createElement(Text, { color: 'gray' }, `  Lineage: ${result.lineagePath}`),
+      result.detectedPatterns?.length > 0 &&
+        React.createElement(
+          Text,
+          { color: 'cyan' },
+          `  Auto-detected: ${result.detectedPatterns.join(', ')}`
+        ),
+      result.filterCount > 0 &&
+        React.createElement(
+          Text,
+          { color: 'gray' },
+          `  Filters: ${result.filterCount} pattern(s) applied`
+        ),
+      treeOutput &&
+        !quiet &&
+        React.createElement(Box, { marginTop: 1 }, React.createElement(Text, null, treeOutput)),
+      React.createElement(
+        Text,
+        { color: 'cyan', marginTop: 1 },
+        `vlurped ${result.fileCount} files to ${result.path}`
+      )
     );
   }
 
   return React.createElement(
     Box,
     null,
+    React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
     React.createElement(
       Text,
       null,
-      React.createElement(Spinner, {type: 'dots'})
-    ),
-    React.createElement(Text, null, ` ${status === 'locating' ? 'Locating repository...' : 'vlurping repository...'}`)
+      ` ${status === 'locating' ? 'Locating repository...' : 'vlurping repository...'}`
+    )
   );
 }
 

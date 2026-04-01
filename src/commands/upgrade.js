@@ -1,16 +1,16 @@
+import { readFile, rename, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import process from 'node:process';
-import {readFile, writeFile, rename} from 'node:fs/promises';
-import {resolve, join} from 'node:path';
-import React, {useState, useEffect} from 'react';
-import {Box, Text} from 'ink';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import {parseVlurpfile, updateRefs} from '../vlurpfile.js';
-import {parseSource, fetchRepository, Fetcher} from '../remote.js';
-import {hashDirectory, createLineageRecord, appendLineage} from '../lineage.js';
-import {buildCatalog} from '../catalog.js';
-import {diffCatalogs, formatCatalogDiff} from '../catalog-diff.js';
+import React, { useEffect, useState } from 'react';
+import { buildCatalog } from '../catalog.js';
+import { diffCatalogs, formatCatalogDiff } from '../catalog-diff.js';
+import { appendLineage, createLineageRecord, hashDirectory } from '../lineage.js';
+import { Fetcher, fetchRepository, parseSource } from '../remote.js';
+import { parseVlurpfile, updateRefs } from '../vlurpfile.js';
 
-export function UpgradeCommand({vlurpfilePath, source, dryRun}) {
+export function UpgradeCommand({ vlurpfilePath, source, dryRun }) {
   const [status, setStatus] = useState('resolving');
   const [error, setError] = useState(null);
   const [results, setResults] = useState([]);
@@ -21,8 +21,14 @@ export function UpgradeCommand({vlurpfilePath, source, dryRun}) {
     async function performUpgrade() {
       try {
         await runUpgrade({
-          vlurpfilePath, source, dryRun,
-          setStatus, setError, setResults, setCurrentSource, setSummary
+          vlurpfilePath,
+          source,
+          dryRun,
+          setStatus,
+          setError,
+          setResults,
+          setCurrentSource,
+          setSummary
         });
       } catch (err) {
         setError(err.message);
@@ -36,8 +42,8 @@ export function UpgradeCommand({vlurpfilePath, source, dryRun}) {
   if (status === 'error') {
     return React.createElement(
       Box,
-      {flexDirection: 'column'},
-      React.createElement(Text, {color: 'red'}, `Error: ${error}`)
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'red' }, `Error: ${error}`)
     );
   }
 
@@ -45,10 +51,12 @@ export function UpgradeCommand({vlurpfilePath, source, dryRun}) {
     return React.createElement(
       Box,
       null,
-      React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
-      React.createElement(Text, null, currentSource
-        ? ` Checking ${currentSource}...`
-        : ' Reading vlurpfile...')
+      React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
+      React.createElement(
+        Text,
+        null,
+        currentSource ? ` Checking ${currentSource}...` : ' Reading vlurpfile...'
+      )
     );
   }
 
@@ -69,8 +77,14 @@ export function UpgradeCommand({vlurpfilePath, source, dryRun}) {
 
 async function runUpgrade(options) {
   const {
-    vlurpfilePath, source, dryRun,
-    setStatus, setError, setResults, setCurrentSource, setSummary
+    vlurpfilePath,
+    source,
+    dryRun,
+    setStatus,
+    setError,
+    setResults,
+    setCurrentSource,
+    setSummary
   } = options;
 
   // Step 1: Find and read vlurpfile
@@ -91,9 +105,7 @@ async function runUpgrade(options) {
   }
 
   // Filter to specific source if given
-  const targetEntries = source
-    ? entries.filter(e => e.source === source)
-    : entries;
+  const targetEntries = source ? entries.filter(e => e.source === source) : entries;
 
   if (source && targetEntries.length === 0) {
     setError(`Source "${source}" not found in vlurpfile`);
@@ -115,8 +127,13 @@ async function runUpgrade(options) {
   setStatus('checking');
   const fetcher = new Fetcher();
   const upgradeResults = await checkAndUpgradeSources({
-    sourceMap, fetcher, dryRun, entries,
-    setCurrentSource, setResults, setStatus
+    sourceMap,
+    fetcher,
+    dryRun,
+    entries,
+    setCurrentSource,
+    setResults,
+    setStatus
   });
 
   // Step 5: Rewrite .vlurpfile with new refs
@@ -146,10 +163,7 @@ async function runUpgrade(options) {
 }
 
 async function checkAndUpgradeSources(options) {
-  const {
-    sourceMap, fetcher, dryRun, entries,
-    setCurrentSource, setResults, setStatus
-  } = options;
+  const { sourceMap, fetcher, dryRun, entries, setCurrentSource, setResults, setStatus } = options;
   const upgradeResults = [];
 
   // Collect rootDirs for catalog snapshot
@@ -159,29 +173,36 @@ async function checkAndUpgradeSources(options) {
     setCurrentSource(src);
     const parts = src.split('/');
     if (parts.length < 2) {
-      upgradeResults.push({source: src, status: 'error', message: 'Invalid source format'});
+      upgradeResults.push({ source: src, status: 'error', message: 'Invalid source format' });
       setResults([...upgradeResults]);
       continue;
     }
 
     const [user, repo] = parts;
 
-    // eslint-disable-next-line no-await-in-loop -- Sequential for API rate limits
     const upstreamSha = await fetcher.resolveHead(user, repo);
     if (!upstreamSha) {
-      upgradeResults.push({source: src, status: 'error', message: 'Could not resolve upstream HEAD'});
+      upgradeResults.push({
+        source: src,
+        status: 'error',
+        message: 'Could not resolve upstream HEAD'
+      });
       setResults([...upgradeResults]);
       continue;
     }
 
     const pinnedRef = srcEntries[0].ref;
-    const isCurrent = pinnedRef
-      && (upstreamSha.startsWith(pinnedRef) || pinnedRef.startsWith(upstreamSha.slice(0, pinnedRef.length)));
+    const isCurrent =
+      pinnedRef &&
+      (upstreamSha.startsWith(pinnedRef) ||
+        pinnedRef.startsWith(upstreamSha.slice(0, pinnedRef.length)));
 
     if (isCurrent) {
       upgradeResults.push({
-        source: src, status: 'current',
-        ref: pinnedRef, upstream: upstreamSha.slice(0, 7)
+        source: src,
+        status: 'current',
+        ref: pinnedRef,
+        upstream: upstreamSha.slice(0, 7)
       });
       setResults([...upgradeResults]);
       continue;
@@ -189,8 +210,10 @@ async function checkAndUpgradeSources(options) {
 
     if (dryRun) {
       upgradeResults.push({
-        source: src, status: 'outdated',
-        ref: pinnedRef || null, upstream: upstreamSha.slice(0, 7),
+        source: src,
+        status: 'outdated',
+        ref: pinnedRef || null,
+        upstream: upstreamSha.slice(0, 7),
         entries: srcEntries.length
       });
       setResults([...upgradeResults]);
@@ -198,22 +221,18 @@ async function checkAndUpgradeSources(options) {
     }
 
     // Step 3: Snapshot pre-upgrade catalog (once, before first fetch)
-    // eslint-disable-next-line no-await-in-loop
     const preCatalog = await snapshotCatalogs(rootDirs, setStatus, setCurrentSource);
 
     // Fetch each entry for this source with the new ref
     setStatus('upgrading');
     const shortSha = upstreamSha.slice(0, 7);
-    // eslint-disable-next-line no-await-in-loop
     const fetchedAll = await fetchSourceEntries(srcEntries, upstreamSha, setCurrentSource);
 
     // Step 4: Snapshot post-upgrade catalog and diff
-    // eslint-disable-next-line no-await-in-loop
     const postCatalog = await snapshotCatalogs(rootDirs, setStatus, setCurrentSource);
     const catalogDiff = diffCatalogs(preCatalog, postCatalog);
 
     // Save catalog.prev.json and catalog.json
-    // eslint-disable-next-line no-await-in-loop
     await saveCatalogs(rootDirs, preCatalog, postCatalog);
 
     upgradeResults.push({
@@ -246,10 +265,9 @@ async function snapshotCatalogs(rootDirs, setStatus, setCurrentSource) {
   setCurrentSource('building catalog...');
 
   // Merge catalogs from all rootDirs into one
-  const merged = {skills: {}};
+  const merged = { skills: {} };
   for (const dir of rootDirs) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       const catalog = await buildCatalog(dir);
       Object.assign(merged.skills, catalog.skills);
     } catch {
@@ -267,13 +285,11 @@ async function saveCatalogs(rootDirs, preCatalog, postCatalog) {
 
     // Rotate existing catalog.json to catalog.prev.json
     try {
-      // eslint-disable-next-line no-await-in-loop
       await rename(catalogPath, prevPath);
     } catch {
       // No existing catalog.json — write prev from snapshot
       try {
-        // eslint-disable-next-line no-await-in-loop
-        await writeFile(prevPath, JSON.stringify(preCatalog, null, 2) + '\n');
+        await writeFile(prevPath, `${JSON.stringify(preCatalog, null, 2)}\n`);
       } catch {
         // Write failure is non-fatal
       }
@@ -281,8 +297,7 @@ async function saveCatalogs(rootDirs, preCatalog, postCatalog) {
 
     // Write new catalog.json
     try {
-      // eslint-disable-next-line no-await-in-loop
-      await writeFile(catalogPath, JSON.stringify(postCatalog, null, 2) + '\n');
+      await writeFile(catalogPath, `${JSON.stringify(postCatalog, null, 2)}\n`);
     } catch {
       // Write failure is non-fatal
     }
@@ -295,13 +310,12 @@ async function fetchSourceEntries(srcEntries, upstreamSha, setCurrentSource) {
   for (const entry of srcEntries) {
     setCurrentSource(`${entry.source}${entry.as ? ` (${entry.as})` : ''}`);
     try {
-      const parsed = parseSource(entry.source, {ref: upstreamSha});
-      const targetPath = entry.targetPath || resolve(entry.rootDir || '.', parsed.user, parsed.repo);
+      const parsed = parseSource(entry.source, { ref: upstreamSha });
+      const targetPath =
+        entry.targetPath || resolve(entry.rootDir || '.', parsed.user, parsed.repo);
 
-      // eslint-disable-next-line no-await-in-loop
-      await fetchRepository(parsed.tarballUrl, targetPath, entry.filters, {force: true});
+      await fetchRepository(parsed.tarballUrl, targetPath, entry.filters, { force: true });
 
-      // eslint-disable-next-line no-await-in-loop
       const files = await hashDirectory(targetPath);
       const lineageRecord = createLineageRecord({
         source: `${parsed.user}/${parsed.repo}`,
@@ -315,7 +329,6 @@ async function fetchSourceEntries(srcEntries, upstreamSha, setCurrentSource) {
 
       const lineageDir = entry.rootDir ? resolve(entry.rootDir) : process.cwd();
       const lineagePath = join(lineageDir, '.vlurp.jsonl');
-      // eslint-disable-next-line no-await-in-loop
       await appendLineage(lineagePath, lineageRecord);
     } catch {
       fetchedAll = false;
@@ -329,103 +342,124 @@ function renderUpgrading(currentSource, results, status) {
   const label = status === 'cataloging' ? 'Building catalog...' : `Upgrading ${currentSource}...`;
   return React.createElement(
     Box,
-    {flexDirection: 'column'},
+    { flexDirection: 'column' },
     React.createElement(
       Box,
       null,
-      React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
+      React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
       React.createElement(Text, null, ` ${label}`)
     ),
-    ...results.filter(r => r.status !== 'current').slice(-5).map((r, i) =>
-      React.createElement(
-        Text,
-        {key: i, color: r.status === 'upgraded' ? 'green' : (r.status === 'error' ? 'red' : 'yellow')},
-        `  ${statusIcon(r.status)} ${r.source} ${r.ref || ''} -> ${r.upstream || r.newRef || ''}`
-      ))
+    ...results
+      .filter(r => r.status !== 'current')
+      .slice(-5)
+      .map((r, i) =>
+        React.createElement(
+          Text,
+          {
+            key: i,
+            color: r.status === 'upgraded' ? 'green' : r.status === 'error' ? 'red' : 'yellow'
+          },
+          `  ${statusIcon(r.status)} ${r.source} ${r.ref || ''} -> ${r.upstream || r.newRef || ''}`
+        )
+      )
   );
 }
 
 function renderDryRunComplete(summary) {
-  const {outdated, current, errors} = summary;
+  const { outdated, current, errors } = summary;
   const hasChanges = outdated.length > 0;
 
   return React.createElement(
     Box,
-    {flexDirection: 'column'},
-    React.createElement(Text, {color: 'yellow', bold: true}, 'Dry run — would upgrade:\n'),
-    ...outdated.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'yellow'},
-      `  ${r.source}  ${r.ref || '(unpinned)'} -> ${r.upstream}${r.entries > 1 ? ` (${r.entries} entries)` : ''}`
-    )),
-    ...current.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'green'},
-      `  ${r.source}  ${r.ref}  up to date`
-    )),
-    ...errors.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'red'},
-      `  ${r.source}  ${r.message}`
-    )),
+    { flexDirection: 'column' },
+    React.createElement(Text, { color: 'yellow', bold: true }, 'Dry run — would upgrade:\n'),
+    ...outdated.map(r =>
+      React.createElement(
+        Text,
+        { key: r.source, color: 'yellow' },
+        `  ${r.source}  ${r.ref || '(unpinned)'} -> ${r.upstream}${r.entries > 1 ? ` (${r.entries} entries)` : ''}`
+      )
+    ),
+    ...current.map(r =>
+      React.createElement(
+        Text,
+        { key: r.source, color: 'green' },
+        `  ${r.source}  ${r.ref}  up to date`
+      )
+    ),
+    ...errors.map(r =>
+      React.createElement(Text, { key: r.source, color: 'red' }, `  ${r.source}  ${r.message}`)
+    ),
     React.createElement(Text, null, ''),
     React.createElement(
       Text,
-      {bold: true, color: hasChanges ? 'yellow' : 'green'},
+      { bold: true, color: hasChanges ? 'yellow' : 'green' },
       `${outdated.length} to upgrade, ${current.length} current${errors.length > 0 ? `, ${errors.length} errors` : ''}`
     ),
-    hasChanges && React.createElement(Text, {color: 'gray', marginTop: 1}, '\nRun without --dry-run to apply.')
+    hasChanges &&
+      React.createElement(
+        Text,
+        { color: 'gray', marginTop: 1 },
+        '\nRun without --dry-run to apply.'
+      )
   );
 }
 
 function renderComplete(summary) {
-  const {upgraded, current, errors, catalogDiff} = summary;
+  const { upgraded, current, errors, catalogDiff } = summary;
 
   const elements = [
-    ...upgraded.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'green'},
-      `  ${r.source}  ${r.ref || '(unpinned)'} -> ${r.newRef}${r.entries > 1 ? ` (${r.entries} entries)` : ''}`
-    )),
-    ...current.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'green'},
-      `  ${r.source}  ${r.ref}  up to date`
-    )),
-    ...errors.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'red'},
-      `  ${r.source}  ${r.message}`
-    )),
-    React.createElement(Text, {key: '_blank1'}, ''),
+    ...upgraded.map(r =>
+      React.createElement(
+        Text,
+        { key: r.source, color: 'green' },
+        `  ${r.source}  ${r.ref || '(unpinned)'} -> ${r.newRef}${r.entries > 1 ? ` (${r.entries} entries)` : ''}`
+      )
+    ),
+    ...current.map(r =>
+      React.createElement(
+        Text,
+        { key: r.source, color: 'green' },
+        `  ${r.source}  ${r.ref}  up to date`
+      )
+    ),
+    ...errors.map(r =>
+      React.createElement(Text, { key: r.source, color: 'red' }, `  ${r.source}  ${r.message}`)
+    ),
+    React.createElement(Text, { key: '_blank1' }, ''),
     React.createElement(
       Text,
-      {key: '_summary', bold: true, color: errors.length > 0 ? 'yellow' : 'green'},
+      { key: '_summary', bold: true, color: errors.length > 0 ? 'yellow' : 'green' },
       `${upgraded.length} upgraded, ${current.length} current${errors.length > 0 ? `, ${errors.length} errors` : ''}`
     )
   ];
 
   // Append catalog diff if available and has changes
-  const hasSkillChanges = catalogDiff
-    && (catalogDiff.summary.new > 0 || catalogDiff.summary.removed > 0 || catalogDiff.summary.changed > 0);
+  const hasSkillChanges =
+    catalogDiff &&
+    (catalogDiff.summary.new > 0 ||
+      catalogDiff.summary.removed > 0 ||
+      catalogDiff.summary.changed > 0);
   if (hasSkillChanges) {
     const diffElements = [
-      React.createElement(Text, {key: '_blank2'}, ''),
-      React.createElement(Text, {key: '_diffheader', bold: true}, 'What changed:'),
-      React.createElement(Text, {key: '_diff'}, formatCatalogDiff(catalogDiff))
+      React.createElement(Text, { key: '_blank2' }, ''),
+      React.createElement(Text, { key: '_diffheader', bold: true }, 'What changed:'),
+      React.createElement(Text, { key: '_diff' }, formatCatalogDiff(catalogDiff))
     ];
     elements.push(...diffElements);
   }
 
   if (upgraded.length > 0) {
-    elements.push(React.createElement(Text, {key: '_refs', color: 'gray'}, '  .vlurpfile updated with new refs'));
+    elements.push(
+      React.createElement(
+        Text,
+        { key: '_refs', color: 'gray' },
+        '  .vlurpfile updated with new refs'
+      )
+    );
   }
 
-  return React.createElement(
-    Box,
-    {flexDirection: 'column'},
-    ...elements
-  );
+  return React.createElement(Box, { flexDirection: 'column' }, ...elements);
 }
 
 function statusIcon(s) {
@@ -461,7 +495,6 @@ async function findVlurpfile(explicitPath) {
   for (const name of candidates) {
     try {
       const path = resolve(name);
-      // eslint-disable-next-line no-await-in-loop
       await readFile(path);
       return path;
     } catch {

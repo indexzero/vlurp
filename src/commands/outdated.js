@@ -1,13 +1,13 @@
-import {resolve, join} from 'node:path';
-import {readFile} from 'node:fs/promises';
-import React, {useState, useEffect} from 'react';
-import {Box, Text} from 'ink';
+import { readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import {parseVlurpfile} from '../vlurpfile.js';
-import {Fetcher} from '../remote.js';
-import {readLineage} from '../lineage.js';
+import React, { useEffect, useState } from 'react';
+import { readLineage } from '../lineage.js';
+import { Fetcher } from '../remote.js';
+import { parseVlurpfile } from '../vlurpfile.js';
 
-export function OutdatedCommand({vlurpfilePath}) {
+export function OutdatedCommand({ vlurpfilePath }) {
   const [status, setStatus] = useState('checking');
   const [error, setError] = useState(null);
   const [results, setResults] = useState([]);
@@ -38,7 +38,6 @@ export function OutdatedCommand({vlurpfilePath}) {
           if (entry.rootDir) {
             const lineagePath = join(resolve(entry.rootDir), '.vlurp.jsonl');
             try {
-              // eslint-disable-next-line no-await-in-loop
               const records = await readLineage(lineagePath);
               lineageRecords.push(...records);
             } catch {
@@ -63,7 +62,6 @@ export function OutdatedCommand({vlurpfilePath}) {
 
           const [user, repo] = parts;
 
-          // eslint-disable-next-line no-await-in-loop
           const upstreamSha = await fetcher.resolveHead(user, repo);
           if (!upstreamSha) {
             outdatedResults.push({
@@ -83,7 +81,10 @@ export function OutdatedCommand({vlurpfilePath}) {
               upstream: shortUpstream,
               message: 'Not pinned — always fetches latest'
             });
-          } else if (upstreamSha.startsWith(entry.ref) || entry.ref.startsWith(upstreamSha.slice(0, entry.ref.length))) {
+          } else if (
+            upstreamSha.startsWith(entry.ref) ||
+            entry.ref.startsWith(upstreamSha.slice(0, entry.ref.length))
+          ) {
             // Compare short SHAs sensibly
             outdatedResults.push({
               source: entry.source,
@@ -117,8 +118,8 @@ export function OutdatedCommand({vlurpfilePath}) {
   if (status === 'error') {
     return React.createElement(
       Box,
-      {flexDirection: 'column'},
-      React.createElement(Text, {color: 'red'}, `Error: ${error}`)
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'red' }, `Error: ${error}`)
     );
   }
 
@@ -126,7 +127,7 @@ export function OutdatedCommand({vlurpfilePath}) {
     return React.createElement(
       Box,
       null,
-      React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
+      React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
       React.createElement(Text, null, ' Checking upstream...')
     );
   }
@@ -138,31 +139,35 @@ export function OutdatedCommand({vlurpfilePath}) {
 
   return React.createElement(
     Box,
-    {flexDirection: 'column'},
-    ...current.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'green'},
-      `  ${r.source} (pinned: ${r.pinned})  ok  Up to date`
-    )),
-    ...outdated.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'yellow'},
-      `  ${r.source} (pinned: ${r.pinned}, upstream: ${r.upstream})  OUTDATED`
-    )),
-    ...unpinned.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'yellow'},
-      `  ${r.source} (upstream: ${r.upstream})  NOT PINNED`
-    )),
-    ...errors.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'red'},
-      `  ${r.source}  ${r.message}`
-    )),
+    { flexDirection: 'column' },
+    ...current.map(r =>
+      React.createElement(
+        Text,
+        { key: r.source, color: 'green' },
+        `  ${r.source} (pinned: ${r.pinned})  ok  Up to date`
+      )
+    ),
+    ...outdated.map(r =>
+      React.createElement(
+        Text,
+        { key: r.source, color: 'yellow' },
+        `  ${r.source} (pinned: ${r.pinned}, upstream: ${r.upstream})  OUTDATED`
+      )
+    ),
+    ...unpinned.map(r =>
+      React.createElement(
+        Text,
+        { key: r.source, color: 'yellow' },
+        `  ${r.source} (upstream: ${r.upstream})  NOT PINNED`
+      )
+    ),
+    ...errors.map(r =>
+      React.createElement(Text, { key: r.source, color: 'red' }, `  ${r.source}  ${r.message}`)
+    ),
     React.createElement(Text, null, ''),
     React.createElement(
       Text,
-      {bold: true, color: outdated.length > 0 || unpinned.length > 0 ? 'yellow' : 'green'},
+      { bold: true, color: outdated.length > 0 || unpinned.length > 0 ? 'yellow' : 'green' },
       `${current.length} current, ${outdated.length} outdated, ${unpinned.length} unpinned${errors.length > 0 ? `, ${errors.length} errors` : ''}`
     )
   );
@@ -177,7 +182,6 @@ async function findVlurpfile(explicitPath) {
   for (const name of candidates) {
     try {
       const path = resolve(name);
-      // eslint-disable-next-line no-await-in-loop
       await readFile(path);
       return path;
     } catch {

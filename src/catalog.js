@@ -1,7 +1,7 @@
-import {join, basename} from 'node:path';
-import {readFile} from 'node:fs/promises';
-import {readLineage} from './lineage.js';
-import {scanDirectory, summarizeScan} from './scanner.js';
+import { readFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
+import { readLineage } from './lineage.js';
+import { scanDirectory, summarizeScan } from './scanner.js';
 
 /**
  * Build a catalog from content on disk.
@@ -25,8 +25,10 @@ export async function buildCatalog(resolvedPath) {
         continue;
       }
 
-      // eslint-disable-next-line no-await-in-loop
-      const skillEntry = await buildSkillEntry(resolvedPath, record, prefix, {filePath, scanSummary});
+      const skillEntry = await buildSkillEntry(resolvedPath, record, prefix, {
+        filePath,
+        scanSummary
+      });
       if (skillEntry) {
         skills[skillEntry.name] = skillEntry.data;
       }
@@ -34,13 +36,14 @@ export async function buildCatalog(resolvedPath) {
   }
 
   return {
-    generated_at: new Date().toISOString(), // eslint-disable-line camelcase
+    generated_at: new Date().toISOString(),
     skills
   };
 }
 
-async function buildSkillEntry(resolvedPath, record, prefix, {filePath, scanSummary}) {
-  const skillDir = filePath === 'SKILL.md' ? prefix : join(prefix, filePath.replace(/\/SKILL\.md$/, ''));
+async function buildSkillEntry(resolvedPath, record, prefix, { filePath, scanSummary }) {
+  const skillDir =
+    filePath === 'SKILL.md' ? prefix : join(prefix, filePath.replace(/\/SKILL\.md$/, ''));
   const skillName = basename(skillDir);
   const fullSkillPath = join(resolvedPath, prefix, filePath);
 
@@ -71,12 +74,10 @@ async function buildSkillEntry(resolvedPath, record, prefix, {filePath, scanSumm
       name: frontmatter?.name || skillName,
       version: frontmatter?.version || null,
       description,
-      /* eslint-disable camelcase -- SPEC.3 JSON schema */
       tool_surface: Object.keys(fileScan.tool_refs || {}),
       command_surface: fileScan.command_refs || [],
       supporting_files: supportingFiles,
-      /* eslint-enable camelcase */
-      fetched_at: record.fetched_at // eslint-disable-line camelcase
+      fetched_at: record.fetched_at
     }
   };
 }
@@ -97,7 +98,10 @@ export function extractFrontmatter(content) {
     const colonIndex = line.indexOf(':');
     if (colonIndex > 0) {
       const key = line.slice(0, colonIndex).trim();
-      const value = line.slice(colonIndex + 1).trim().replaceAll(/^["']|["']$/g, '');
+      const value = line
+        .slice(colonIndex + 1)
+        .trim()
+        .replaceAll(/^["']|["']$/g, '');
       result[key] = value;
     }
   }

@@ -1,18 +1,18 @@
 import process from 'node:process';
-import {jack} from 'jackspeak';
-import {render} from 'ink';
+import { render } from 'ink';
+import { jack } from 'jackspeak';
 import React from 'react';
-import {FetchCommand} from './commands/fetch.js';
-import {BatchCommand} from './commands/batch.js';
-import {VerifyCommand} from './commands/verify.js';
-import {PinCommand} from './commands/pin.js';
-import {OutdatedCommand} from './commands/outdated.js';
-import {DiffCommand} from './commands/diff.js';
-import {ScanCommand} from './commands/scan.js';
-import {CatalogCommand} from './commands/catalog.js';
-import {UpgradeCommand} from './commands/upgrade.js';
-import {CatalogDiffCommand} from './commands/catalog-diff.js';
-import {PRESETS} from './presets.js';
+import { BatchCommand } from './commands/batch.js';
+import { CatalogCommand } from './commands/catalog.js';
+import { CatalogDiffCommand } from './commands/catalog-diff.js';
+import { DiffCommand } from './commands/diff.js';
+import { FetchCommand } from './commands/fetch.js';
+import { OutdatedCommand } from './commands/outdated.js';
+import { PinCommand } from './commands/pin.js';
+import { ScanCommand } from './commands/scan.js';
+import { UpgradeCommand } from './commands/upgrade.js';
+import { VerifyCommand } from './commands/verify.js';
+import { PRESETS } from './presets.js';
 
 const j = jack({
   usage: 'vlurp [command] [source] [options]'
@@ -24,7 +24,8 @@ const j = jack({
       short: 'd'
     },
     preset: {
-      description: 'Use a preset filter configuration (claude, skills, agents, docs, all-md, minimal)',
+      description:
+        'Use a preset filter configuration (claude, skills, agents, docs, all-md, minimal)',
       hint: 'name'
     },
     ref: {
@@ -43,7 +44,19 @@ const j = jack({
   .optList({
     filter: {
       description: 'Glob patterns to filter files (see defaults in help)',
-      default: ['.claude/**', 'CLAUDE.md', '*.md', '**/*.md', '!README.md', '!CONTRIBUTING.md', '!LICENSE.md', '!CHANGELOG.md', '!CODE_OF_CONDUCT.md', 'agents/**', 'commands/**']
+      default: [
+        '.claude/**',
+        'CLAUDE.md',
+        '*.md',
+        '**/*.md',
+        '!README.md',
+        '!CONTRIBUTING.md',
+        '!LICENSE.md',
+        '!CHANGELOG.md',
+        '!CODE_OF_CONDUCT.md',
+        'agents/**',
+        'commands/**'
+      ]
     }
   })
   .flag({
@@ -72,7 +85,7 @@ const j = jack({
     }
   });
 
-const {values, positionals} = j.parse();
+const { values, positionals } = j.parse();
 
 if (values.help) {
   console.log(`vlurp - A fun CLI tool to quickly fetch GitHub repositories and gists
@@ -103,8 +116,9 @@ Usage:
   vlurp diff user/repo -d ./skills              Show diff against upstream
 
 Presets:
-${Object.entries(PRESETS).map(([name, config]) =>
-  `  ${name.padEnd(10)} ${config.description}`).join('\n')}
+${Object.entries(PRESETS)
+  .map(([name, config]) => `  ${name.padEnd(10)} ${config.description}`)
+  .join('\n')}
 
 Examples:
   vlurp user/repo --ref abc1234           Fetch pinned to commit
@@ -144,8 +158,8 @@ if (positionals.length === 0) {
 
 const command = positionals[0];
 const rootDir = values.d;
-const {force, auto, preset, quiet} = values;
-const {ref} = values;
+const { force, auto, preset, quiet } = values;
+const { ref } = values;
 const asName = values.as;
 const dryRun = values['dry-run'];
 
@@ -159,16 +173,21 @@ switch (command) {
       process.exit(1);
     }
 
-    render(React.createElement(BatchCommand, {
-      vlurpfile, dryRun, force, quiet
-    }));
+    render(
+      React.createElement(BatchCommand, {
+        vlurpfile,
+        dryRun,
+        force,
+        quiet
+      })
+    );
 
     break;
   }
 
   case 'verify': {
     const targetPath = positionals[1] || '.';
-    render(React.createElement(VerifyCommand, {targetPath}));
+    render(React.createElement(VerifyCommand, { targetPath }));
 
     break;
   }
@@ -176,39 +195,41 @@ switch (command) {
   case 'pin': {
     const source = positionals[1] || null;
     const vlurpfilePath = positionals[2] || null;
-    render(React.createElement(PinCommand, {source, vlurpfilePath}));
+    render(React.createElement(PinCommand, { source, vlurpfilePath }));
 
     break;
   }
 
   case 'outdated': {
     const vlurpfileArg = positionals[1] || null;
-    render(React.createElement(OutdatedCommand, {vlurpfilePath: vlurpfileArg}));
+    render(React.createElement(OutdatedCommand, { vlurpfilePath: vlurpfileArg }));
 
     break;
   }
 
   case 'upgrade': {
     const upgradeSource = positionals[1] || null;
-    render(React.createElement(UpgradeCommand, {
-      vlurpfilePath: values.vlurpfile || null,
-      source: upgradeSource,
-      dryRun
-    }));
+    render(
+      React.createElement(UpgradeCommand, {
+        vlurpfilePath: values.vlurpfile || null,
+        source: upgradeSource,
+        dryRun
+      })
+    );
 
     break;
   }
 
   case 'scan': {
     const scanPath = positionals[1] || '.';
-    render(React.createElement(ScanCommand, {targetPath: scanPath}));
+    render(React.createElement(ScanCommand, { targetPath: scanPath }));
 
     break;
   }
 
   case 'catalog': {
     const catalogPath = positionals[1] || '.';
-    render(React.createElement(CatalogCommand, {targetPath: catalogPath}));
+    render(React.createElement(CatalogCommand, { targetPath: catalogPath }));
 
     break;
   }
@@ -216,11 +237,13 @@ switch (command) {
   case 'catalog-diff': {
     const cdOldPath = positionals[1] || null;
     const cdNewPath = positionals[2] || null;
-    render(React.createElement(CatalogDiffCommand, {
-      oldPath: cdOldPath,
-      newPath: cdNewPath,
-      json: values.json
-    }));
+    render(
+      React.createElement(CatalogDiffCommand, {
+        oldPath: cdOldPath,
+        newPath: cdNewPath,
+        json: values.json
+      })
+    );
 
     break;
   }
@@ -233,13 +256,13 @@ switch (command) {
       process.exit(1);
     }
 
-    render(React.createElement(DiffCommand, {source: diffSource, rootDir}));
+    render(React.createElement(DiffCommand, { source: diffSource, rootDir }));
 
     break;
   }
 
   default: {
-  // Regular fetch command
+    // Regular fetch command
     const source = command;
 
     // Resolve filters from preset or explicit filters
@@ -248,17 +271,19 @@ switch (command) {
       filters = PRESETS[preset].filters;
     }
 
-    render(React.createElement(FetchCommand, {
-      source,
-      rootDir,
-      filters,
-      force,
-      auto,
-      dryRun,
-      quiet,
-      ref,
-      asName,
-      preset
-    }));
+    render(
+      React.createElement(FetchCommand, {
+        source,
+        rootDir,
+        filters,
+        force,
+        auto,
+        dryRun,
+        quiet,
+        ref,
+        asName,
+        preset
+      })
+    );
   }
 }

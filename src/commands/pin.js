@@ -1,12 +1,12 @@
-import {resolve} from 'node:path';
-import {readFile, writeFile} from 'node:fs/promises';
-import React, {useState, useEffect} from 'react';
-import {Box, Text} from 'ink';
+import { readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import {Fetcher} from '../remote.js';
-import {parseVlurpfile} from '../vlurpfile.js';
+import React, { useEffect, useState } from 'react';
+import { Fetcher } from '../remote.js';
+import { parseVlurpfile } from '../vlurpfile.js';
 
-export function PinCommand({source, vlurpfilePath}) {
+export function PinCommand({ source, vlurpfilePath }) {
   const [status, setStatus] = useState('resolving');
   const [error, setError] = useState(null);
   const [results, setResults] = useState([]);
@@ -48,16 +48,23 @@ export function PinCommand({source, vlurpfilePath}) {
         for (const entry of toPin) {
           const parts = entry.source.split('/');
           if (parts.length < 2) {
-            pinResults.push({source: entry.source, status: 'error', message: 'Invalid source format'});
+            pinResults.push({
+              source: entry.source,
+              status: 'error',
+              message: 'Invalid source format'
+            });
             continue;
           }
 
           const [user, repo] = parts;
 
-          // eslint-disable-next-line no-await-in-loop
           const sha = await fetcher.resolveHead(user, repo);
           if (!sha) {
-            pinResults.push({source: entry.source, status: 'error', message: 'Could not resolve HEAD'});
+            pinResults.push({
+              source: entry.source,
+              status: 'error',
+              message: 'Could not resolve HEAD'
+            });
             continue;
           }
 
@@ -79,7 +86,7 @@ export function PinCommand({source, vlurpfilePath}) {
             return `${command} --ref ${shortSha}${comment}`;
           });
 
-          pinResults.push({source: entry.source, status: 'pinned', sha: shortSha});
+          pinResults.push({ source: entry.source, status: 'pinned', sha: shortSha });
           setResults([...pinResults]);
         }
 
@@ -100,8 +107,8 @@ export function PinCommand({source, vlurpfilePath}) {
   if (status === 'error') {
     return React.createElement(
       Box,
-      {flexDirection: 'column'},
-      React.createElement(Text, {color: 'red'}, `Error: ${error}`)
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'red' }, `Error: ${error}`)
     );
   }
 
@@ -109,7 +116,7 @@ export function PinCommand({source, vlurpfilePath}) {
     return React.createElement(
       Box,
       null,
-      React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
+      React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
       React.createElement(Text, null, ' Resolving upstream HEAD...')
     );
   }
@@ -119,23 +126,19 @@ export function PinCommand({source, vlurpfilePath}) {
 
   return React.createElement(
     Box,
-    {flexDirection: 'column'},
-    React.createElement(Text, {bold: true}, 'Pin results:'),
+    { flexDirection: 'column' },
+    React.createElement(Text, { bold: true }, 'Pin results:'),
     React.createElement(Text, null, ''),
-    ...pinned.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'green'},
-      `  ${r.source} -> ${r.sha}`
-    )),
-    ...errors.map(r => React.createElement(
-      Text,
-      {key: r.source, color: 'red'},
-      `  ${r.source}: ${r.message}`
-    )),
+    ...pinned.map(r =>
+      React.createElement(Text, { key: r.source, color: 'green' }, `  ${r.source} -> ${r.sha}`)
+    ),
+    ...errors.map(r =>
+      React.createElement(Text, { key: r.source, color: 'red' }, `  ${r.source}: ${r.message}`)
+    ),
     React.createElement(Text, null, ''),
     React.createElement(
       Text,
-      {color: errors.length > 0 ? 'yellow' : 'green'},
+      { color: errors.length > 0 ? 'yellow' : 'green' },
       `${pinned.length} pinned${errors.length > 0 ? `, ${errors.length} failed` : ''}`
     )
   );
@@ -151,7 +154,6 @@ async function findVlurpfile(explicitPath) {
   for (const name of candidates) {
     try {
       const path = resolve(name);
-      // eslint-disable-next-line no-await-in-loop
       await readFile(path);
       return path;
     } catch {

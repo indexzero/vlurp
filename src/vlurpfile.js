@@ -1,5 +1,5 @@
-import {resolve} from 'node:path';
-import {PRESETS} from './presets.js';
+import { resolve } from 'node:path';
+import { PRESETS } from './presets.js';
 
 /**
  * Parses a .vlurpfile and returns an array of vlurp commands.
@@ -115,7 +115,7 @@ function replaceRef(line, newRef) {
 
   // No existing --ref -- append before trailing newline/whitespace
   const trimmed = line.trimEnd();
-  return trimmed + ` --ref ${newRef}`;
+  return `${trimmed} --ref ${newRef}`;
 }
 
 /**

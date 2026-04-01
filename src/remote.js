@@ -1,22 +1,20 @@
-import {
-  access, mkdir, readdir, cp, rm
-} from 'node:fs/promises';
-import {dirname, join} from 'node:path';
-import {constants, createWriteStream} from 'node:fs';
-import {pipeline} from 'node:stream/promises';
-import {tmpdir} from 'node:os';
-import {randomBytes} from 'node:crypto';
-import {createInterface} from 'node:readline';
+import { randomBytes } from 'node:crypto';
+import { constants, createWriteStream } from 'node:fs';
+import { access, cp, mkdir, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import process from 'node:process';
-import {extract} from 'tar';
-import {request} from 'undici';
-import {glob} from 'glob';
+import { createInterface } from 'node:readline';
+import { pipeline } from 'node:stream/promises';
+import { glob } from 'glob';
 import hostedGitInfo from 'hosted-git-info';
+import { extract } from 'tar';
+import { request } from 'undici';
 
 // --- Parsing ---
 
 export class Parser {
-  parse(source, {ref} = {}) {
+  parse(source, { ref } = {}) {
     // Try to parse with hosted-git-info
     const info = hostedGitInfo.fromUrl(source);
 
@@ -106,7 +104,7 @@ export class Fetcher {
     try {
       await access(dir, constants.F_OK);
     } catch {
-      await mkdir(dir, {recursive: true});
+      await mkdir(dir, { recursive: true });
     }
   }
 
@@ -122,7 +120,7 @@ export class Fetcher {
   async #downloadTarball(url) {
     const temporaryFile = join(tmpdir(), `vlurp-${randomBytes(8).toString('hex')}.tar.gz`);
 
-    const {statusCode, body} = await request(url, {
+    const { statusCode, body } = await request(url, {
       headers: {
         'User-Agent': 'vlurp-cli'
       },
@@ -145,7 +143,7 @@ export class Fetcher {
 
     // Extract to a temp directory first
     const temporaryExtractDir = join(tmpdir(), `vlurp-extract-${randomBytes(8).toString('hex')}`);
-    await mkdir(temporaryExtractDir, {recursive: true});
+    await mkdir(temporaryExtractDir, { recursive: true });
 
     // Extract everything first
     await extract({
@@ -156,15 +154,12 @@ export class Fetcher {
 
     // If no filters provided, copy everything
     if (!filters || filters.length === 0) {
-      await cp(temporaryExtractDir, targetPath, {recursive: true});
+      await cp(temporaryExtractDir, targetPath, { recursive: true });
     } else {
       // Separate positive and negative patterns
-      const ignorePatterns = filters
-        .filter(p => p.startsWith('!'))
-        .map(p => p.slice(1)); // Remove the ! prefix
+      const ignorePatterns = filters.filter(p => p.startsWith('!')).map(p => p.slice(1)); // Remove the ! prefix
 
-      const includePatterns = filters
-        .filter(p => !p.startsWith('!'));
+      const includePatterns = filters.filter(p => !p.startsWith('!'));
 
       // If no positive patterns, include everything by default
       const patterns = includePatterns.length > 0 ? includePatterns : ['**/*'];
@@ -178,7 +173,7 @@ export class Fetcher {
       });
 
       // Create target directory
-      await mkdir(targetPath, {recursive: true});
+      await mkdir(targetPath, { recursive: true });
 
       // Copy matched files maintaining directory structure
 
@@ -187,22 +182,20 @@ export class Fetcher {
         const destPath = join(targetPath, file);
 
         // Ensure parent directory exists
-        // eslint-disable-next-line no-await-in-loop
-        await mkdir(dirname(destPath), {recursive: true});
+        await mkdir(dirname(destPath), { recursive: true });
 
         // Copy file or directory
-        // eslint-disable-next-line no-await-in-loop
-        await cp(sourcePath, destPath, {recursive: true});
+        await cp(sourcePath, destPath, { recursive: true });
       }
     }
 
     // Clean up temp directory
-    await rm(temporaryExtractDir, {recursive: true, force: true});
+    await rm(temporaryExtractDir, { recursive: true, force: true });
   }
 
   async countFiles(dir) {
     try {
-      const files = await readdir(dir, {recursive: true});
+      const files = await readdir(dir, { recursive: true });
       return files.length;
     } catch {
       return 0;
@@ -241,7 +234,7 @@ export class Fetcher {
       }
 
       // Remove existing directory before proceeding
-      await rm(targetPath, {recursive: true, force: true});
+      await rm(targetPath, { recursive: true, force: true });
     }
 
     let temporaryTarball;
@@ -254,8 +247,8 @@ export class Fetcher {
     } finally {
       // Clean up temp file
       if (temporaryTarball) {
-        const {unlink} = await import('node:fs/promises');
-        await unlink(temporaryTarball, {force: true});
+        const { unlink } = await import('node:fs/promises');
+        await unlink(temporaryTarball, { force: true });
       }
     }
   }
@@ -264,11 +257,14 @@ export class Fetcher {
    * Resolve the HEAD SHA for a GitHub repository.
    */
   async resolveHead(user, repo) {
-    const {statusCode, headers, body} = await request(`https://api.github.com/repos/${user}/${repo}/tarball`, {
-      method: 'HEAD',
-      headers: {'User-Agent': 'vlurp-cli'},
-      maxRedirections: 0
-    });
+    const { statusCode, headers, body } = await request(
+      `https://api.github.com/repos/${user}/${repo}/tarball`,
+      {
+        method: 'HEAD',
+        headers: { 'User-Agent': 'vlurp-cli' },
+        maxRedirections: 0
+      }
+    );
 
     // Consume body to prevent leak
     await body.dump();
@@ -277,20 +273,24 @@ export class Fetcher {
     if (statusCode === 302 || statusCode === 301) {
       const location = headers.location || '';
       // URL format: .../{user}-{repo}-{sha}.tar.gz
-      const match = /\/([a-f\d]{40}|[a-f\d]{7,})\.tar\.gz/i.exec(location)
-        || /\/tarball\/([a-f\d]{7,})/i.exec(location);
+      const match =
+        /\/([a-f\d]{40}|[a-f\d]{7,})\.tar\.gz/i.exec(location) ||
+        /\/tarball\/([a-f\d]{7,})/i.exec(location);
       if (match) {
         return match[1];
       }
     }
 
     // Fallback: use the git refs API
-    const {statusCode: refStatus, body: refBody} = await request(`https://api.github.com/repos/${user}/${repo}/git/ref/heads/main`, {
-      headers: {
-        'User-Agent': 'vlurp-cli',
-        Accept: 'application/vnd.github.v3+json'
+    const { statusCode: refStatus, body: refBody } = await request(
+      `https://api.github.com/repos/${user}/${repo}/git/ref/heads/main`,
+      {
+        headers: {
+          'User-Agent': 'vlurp-cli',
+          Accept: 'application/vnd.github.v3+json'
+        }
       }
-    });
+    );
 
     if (refStatus === 200) {
       const data = await refBody.json();
@@ -300,12 +300,15 @@ export class Fetcher {
     await refBody.dump();
 
     // Try master branch
-    const {statusCode: masterStatus, body: masterBody} = await request(`https://api.github.com/repos/${user}/${repo}/git/ref/heads/master`, {
-      headers: {
-        'User-Agent': 'vlurp-cli',
-        Accept: 'application/vnd.github.v3+json'
+    const { statusCode: masterStatus, body: masterBody } = await request(
+      `https://api.github.com/repos/${user}/${repo}/git/ref/heads/master`,
+      {
+        headers: {
+          'User-Agent': 'vlurp-cli',
+          Accept: 'application/vnd.github.v3+json'
+        }
       }
-    });
+    );
 
     if (masterStatus === 200) {
       const data = await masterBody.json();
@@ -323,5 +326,5 @@ export async function fetchRepository(tarballUrl, targetPath, filters = [], opti
 
   // Return file count for the component to display
   const fileCount = await fetcher.countFiles(targetPath);
-  return {fileCount};
+  return { fileCount };
 }

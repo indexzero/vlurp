@@ -1,6 +1,6 @@
-import {describe, it} from 'node:test';
-import {strict as assert} from 'node:assert';
-import {parseVlurpfile, updateRef, updateRefs} from '../src/vlurpfile.js';
+import { strict as assert } from 'node:assert';
+import { describe, it } from 'node:test';
+import { parseVlurpfile, updateRef, updateRefs } from '../src/vlurpfile.js';
 
 describe('vlurpfile parser', () => {
   it('should parse --ref flag', () => {
@@ -24,7 +24,8 @@ describe('vlurpfile parser', () => {
   });
 
   it('should parse combined --ref and --as', () => {
-    const content = 'vlurp dcramer/dex -d ./skills --filter "plugins/dex/skills/dex/**" --as dex --ref 939f6cb';
+    const content =
+      'vlurp dcramer/dex -d ./skills --filter "plugins/dex/skills/dex/**" --as dex --ref 939f6cb';
     const entries = parseVlurpfile(content);
     assert.equal(entries[0].ref, '939f6cb');
     assert.equal(entries[0].as, 'dex');

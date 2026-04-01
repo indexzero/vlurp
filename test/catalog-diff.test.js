@@ -1,9 +1,6 @@
-import {describe, it} from 'node:test';
-import {strict as assert} from 'node:assert';
-import {diffCatalogs, formatCatalogDiff} from '../src/catalog-diff.js';
-
-// eslint-disable-next-line @eslint-community/eslint-comments/disable-enable-pair -- File-wide disable for SPEC.3 snake_case schema
-/* eslint-disable camelcase */
+import { strict as assert } from 'node:assert';
+import { describe, it } from 'node:test';
+import { diffCatalogs, formatCatalogDiff } from '../src/catalog-diff.js';
 
 function skill(overrides = {}) {
   return {
@@ -19,7 +16,7 @@ function skill(overrides = {}) {
 
 describe('diffCatalogs', () => {
   it('should detect new skills', () => {
-    const oldCatalog = {skills: {}};
+    const oldCatalog = { skills: {} };
     const newCatalog = {
       skills: {
         browse: skill({
@@ -31,7 +28,7 @@ describe('diffCatalogs', () => {
 
     const diff = diffCatalogs(oldCatalog, newCatalog);
     assert.equal(diff.skills.browse.status, 'new');
-    assert.deepEqual(diff.skills.browse.version, {old: null, new: '1.0.0'});
+    assert.deepEqual(diff.skills.browse.version, { old: null, new: '1.0.0' });
     assert.deepEqual(diff.skills.browse.tool_surface.added, ['Bash', 'Read']);
     assert.deepEqual(diff.skills.browse.tool_surface.removed, []);
     assert.equal(diff.summary.new, 1);
@@ -46,30 +43,30 @@ describe('diffCatalogs', () => {
         })
       }
     };
-    const newCatalog = {skills: {}};
+    const newCatalog = { skills: {} };
 
     const diff = diffCatalogs(oldCatalog, newCatalog);
     assert.equal(diff.skills['old-skill'].status, 'removed');
-    assert.deepEqual(diff.skills['old-skill'].version, {old: '1.0.0', new: null});
+    assert.deepEqual(diff.skills['old-skill'].version, { old: '1.0.0', new: null });
     assert.deepEqual(diff.skills['old-skill'].tool_surface.removed, ['Bash']);
     assert.equal(diff.summary.removed, 1);
   });
 
   it('should detect changed skills - version bump', () => {
-    const oldCatalog = {skills: {browse: skill()}};
+    const oldCatalog = { skills: { browse: skill() } };
     const newCatalog = {
-      skills: {browse: skill({ref: 'def5678', version: '1.1.0'})}
+      skills: { browse: skill({ ref: 'def5678', version: '1.1.0' }) }
     };
 
     const diff = diffCatalogs(oldCatalog, newCatalog);
     assert.equal(diff.skills.browse.status, 'changed');
-    assert.deepEqual(diff.skills.browse.version, {old: '1.0.0', new: '1.1.0'});
+    assert.deepEqual(diff.skills.browse.version, { old: '1.0.0', new: '1.1.0' });
     assert.equal(diff.summary.changed, 1);
   });
 
   it('should detect changed skills - tool surface delta', () => {
     const oldCatalog = {
-      skills: {review: skill({tool_surface: ['Bash', 'Read']})}
+      skills: { review: skill({ tool_surface: ['Bash', 'Read'] }) }
     };
     const newCatalog = {
       skills: {
@@ -88,8 +85,8 @@ describe('diffCatalogs', () => {
 
   it('should detect unchanged skills', () => {
     const s = skill();
-    const oldCatalog = {skills: {myskill: s}};
-    const newCatalog = {skills: {myskill: {...s}}};
+    const oldCatalog = { skills: { myskill: s } };
+    const newCatalog = { skills: { myskill: { ...s } } };
 
     const diff = diffCatalogs(oldCatalog, newCatalog);
     assert.equal(diff.skills.myskill.status, 'unchanged');
@@ -97,9 +94,9 @@ describe('diffCatalogs', () => {
   });
 
   it('should track source-level ref changes', () => {
-    const oldCatalog = {skills: {browse: skill({ref: 'abc1234'})}};
+    const oldCatalog = { skills: { browse: skill({ ref: 'abc1234' }) } };
     const newCatalog = {
-      skills: {browse: skill({ref: 'def5678', version: '1.1.0'})}
+      skills: { browse: skill({ ref: 'def5678', version: '1.1.0' }) }
     };
 
     const diff = diffCatalogs(oldCatalog, newCatalog);
@@ -115,9 +112,9 @@ describe('diffCatalogs', () => {
           command_surface: ['browse'],
           supporting_files: ['find-browse']
         }),
-        review: skill({supporting_files: ['checklist.md']}),
+        review: skill({ supporting_files: ['checklist.md'] }),
         ship: skill(),
-        'old-skill': skill({tool_surface: []})
+        'old-skill': skill({ tool_surface: [] })
       }
     };
     const newCatalog = {
@@ -133,7 +130,7 @@ describe('diffCatalogs', () => {
           ref: 'new456',
           supporting_files: ['checklist.md', 'greptile-triage.md']
         }),
-        ship: skill({ref: 'new456'}),
+        ship: skill({ ref: 'new456' }),
         'gstack-upgrade': skill({
           ref: 'new456',
           tool_surface: ['Bash', 'Read']
@@ -145,7 +142,7 @@ describe('diffCatalogs', () => {
 
     // Browse: changed (version bump + new tool + new file)
     assert.equal(diff.skills.browse.status, 'changed');
-    assert.deepEqual(diff.skills.browse.version, {old: '1.0.0', new: '1.1.0'});
+    assert.deepEqual(diff.skills.browse.version, { old: '1.0.0', new: '1.1.0' });
     assert.deepEqual(diff.skills.browse.tool_surface.added, ['AskUserQuestion']);
     assert.deepEqual(diff.skills.browse.supporting_files.added, ['remote-slug']);
 
@@ -171,14 +168,14 @@ describe('diffCatalogs', () => {
   });
 
   it('should handle empty catalogs', () => {
-    const diff = diffCatalogs({skills: {}}, {skills: {}});
+    const diff = diffCatalogs({ skills: {} }, { skills: {} });
     assert.equal(diff.summary.total, 0);
     assert.deepEqual(diff.skills, {});
     assert.deepEqual(diff.sources, {});
   });
 
   it('should handle null/undefined catalogs gracefully', () => {
-    const diff = diffCatalogs(null, {skills: {a: {version: '1.0.0'}}});
+    const diff = diffCatalogs(null, { skills: { a: { version: '1.0.0' } } });
     assert.equal(diff.summary.new, 1);
   });
 });
@@ -188,8 +185,8 @@ describe('formatCatalogDiff', () => {
     const diff = diffCatalogs(
       {
         skills: {
-          browse: skill({ref: 'old123'}),
-          removed: skill({ref: 'old123'})
+          browse: skill({ ref: 'old123' }),
+          removed: skill({ ref: 'old123' })
         }
       },
       {
@@ -199,7 +196,7 @@ describe('formatCatalogDiff', () => {
             version: '1.1.0',
             tool_surface: ['Bash', 'Read']
           }),
-          added: skill({ref: 'new456'})
+          added: skill({ ref: 'new456' })
         }
       }
     );
@@ -228,7 +225,7 @@ describe('formatCatalogDiff', () => {
 
   it('should show (none) for new skills with empty surfaces', () => {
     const diff = diffCatalogs(
-      {skills: {}},
+      { skills: {} },
       {
         skills: {
           empty: skill({
@@ -246,10 +243,7 @@ describe('formatCatalogDiff', () => {
 
   it('should not list unchanged skills in output', () => {
     const s = skill();
-    const diff = diffCatalogs(
-      {skills: {stable: s}},
-      {skills: {stable: {...s}}}
-    );
+    const diff = diffCatalogs({ skills: { stable: s } }, { skills: { stable: { ...s } } });
     const output = formatCatalogDiff(diff);
     // The skill name should not appear in the per-skill section (only in summary)
     assert.ok(!output.includes('  stable'));
