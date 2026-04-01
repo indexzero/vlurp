@@ -1,10 +1,10 @@
-import {resolve, join} from 'node:path';
-import React, {useState, useEffect} from 'react';
-import {Box, Text} from 'ink';
+import { join, resolve } from 'node:path';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import {readLineage, verifyFiles} from '../lineage.js';
+import React, { useEffect, useState } from 'react';
+import { readLineage, verifyFiles } from '../lineage.js';
 
-export function VerifyCommand({targetPath}) {
+export function VerifyCommand({ targetPath }) {
   const [status, setStatus] = useState('verifying');
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
@@ -37,8 +37,8 @@ export function VerifyCommand({targetPath}) {
   if (status === 'error') {
     return React.createElement(
       Box,
-      {flexDirection: 'column'},
-      React.createElement(Text, {color: 'red'}, `Error: ${error}`)
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'red' }, `Error: ${error}`)
     );
   }
 
@@ -46,7 +46,7 @@ export function VerifyCommand({targetPath}) {
     return React.createElement(
       Box,
       null,
-      React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
+      React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
       React.createElement(Text, null, ' Verifying file integrity...')
     );
   }
@@ -59,37 +59,37 @@ export function VerifyCommand({targetPath}) {
 
   return React.createElement(
     Box,
-    {flexDirection: 'column'},
-    React.createElement(
-      Text,
-      {bold: true},
-      `Verify: ${resolve(targetPath)}`
+    { flexDirection: 'column' },
+    React.createElement(Text, { bold: true }, `Verify: ${resolve(targetPath)}`),
+    React.createElement(Text, null, ''),
+    ...ok.map(r =>
+      React.createElement(
+        Text,
+        { key: r.file, color: 'green' },
+        `  ${r.file.padEnd(50)} ok  (sha256: ${r.expected.slice(0, 8)}...)`
+      )
+    ),
+    ...modified.map(r =>
+      React.createElement(
+        Text,
+        { key: r.file, color: 'red' },
+        `  ${r.file.padEnd(50)} MODIFIED  (expected: ${r.expected.slice(0, 8)}..., actual: ${r.actual.slice(0, 8)}...)`
+      )
+    ),
+    ...missing.map(r =>
+      React.createElement(Text, { key: r.file, color: 'red' }, `  ${r.file.padEnd(50)} MISSING`)
+    ),
+    ...untracked.map(r =>
+      React.createElement(
+        Text,
+        { key: r.file, color: 'gray' },
+        `  ${r.file.padEnd(50)} no lineage (local file)`
+      )
     ),
     React.createElement(Text, null, ''),
-    ...ok.map(r => React.createElement(
-      Text,
-      {key: r.file, color: 'green'},
-      `  ${r.file.padEnd(50)} ok  (sha256: ${r.expected.slice(0, 8)}...)`
-    )),
-    ...modified.map(r => React.createElement(
-      Text,
-      {key: r.file, color: 'red'},
-      `  ${r.file.padEnd(50)} MODIFIED  (expected: ${r.expected.slice(0, 8)}..., actual: ${r.actual.slice(0, 8)}...)`
-    )),
-    ...missing.map(r => React.createElement(
-      Text,
-      {key: r.file, color: 'red'},
-      `  ${r.file.padEnd(50)} MISSING`
-    )),
-    ...untracked.map(r => React.createElement(
-      Text,
-      {key: r.file, color: 'gray'},
-      `  ${r.file.padEnd(50)} no lineage (local file)`
-    )),
-    React.createElement(Text, null, ''),
     React.createElement(
       Text,
-      {color: hasIssues ? 'red' : 'green', bold: true},
+      { color: hasIssues ? 'red' : 'green', bold: true },
       hasIssues
         ? `${modified.length} modified, ${missing.length} missing, ${ok.length} ok, ${untracked.length} untracked`
         : `All ${ok.length} tracked files verified${untracked.length > 0 ? ` (${untracked.length} untracked)` : ''}`

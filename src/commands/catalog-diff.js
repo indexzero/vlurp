@@ -1,11 +1,11 @@
-import {resolve} from 'node:path';
-import {readFile} from 'node:fs/promises';
-import React, {useState, useEffect} from 'react';
-import {Box, Text} from 'ink';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import {diffCatalogs, formatCatalogDiff} from '../catalog-diff.js';
+import React, { useEffect, useState } from 'react';
+import { diffCatalogs, formatCatalogDiff } from '../catalog-diff.js';
 
-export function CatalogDiffCommand({oldPath, newPath, json}) {
+export function CatalogDiffCommand({ oldPath, newPath, json }) {
   const [status, setStatus] = useState('diffing');
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
@@ -38,7 +38,7 @@ export function CatalogDiffCommand({oldPath, newPath, json}) {
         }
 
         const diff = diffCatalogs(oldCatalog, newCatalog);
-        setResult({diff, oldPath: resolvedOld, newPath: resolvedNew});
+        setResult({ diff, oldPath: resolvedOld, newPath: resolvedNew });
         setStatus('complete');
       } catch (err) {
         setError(err.message);
@@ -47,13 +47,13 @@ export function CatalogDiffCommand({oldPath, newPath, json}) {
     }
 
     performDiff();
-  }, [oldPath, newPath, json]);
+  }, [oldPath, newPath]);
 
   if (status === 'error') {
     return React.createElement(
       Box,
-      {flexDirection: 'column'},
-      React.createElement(Text, {color: 'red'}, `Error: ${error}`)
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'red' }, `Error: ${error}`)
     );
   }
 
@@ -61,18 +61,14 @@ export function CatalogDiffCommand({oldPath, newPath, json}) {
     return React.createElement(
       Box,
       null,
-      React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
+      React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
       React.createElement(Text, null, ' Comparing catalogs...')
     );
   }
 
   // JSON output
   if (json) {
-    return React.createElement(
-      Text,
-      null,
-      JSON.stringify(result.diff, null, 2)
-    );
+    return React.createElement(Text, null, JSON.stringify(result.diff, null, 2));
   }
 
   // Human-readable output
@@ -82,12 +78,9 @@ export function CatalogDiffCommand({oldPath, newPath, json}) {
 
   return React.createElement(
     Box,
-    {flexDirection: 'column'},
+    { flexDirection: 'column' },
     React.createElement(Text, null, formatted),
-    !hasChanges && React.createElement(
-      Text,
-      {color: 'green', marginTop: 1},
-      'No changes between catalogs.'
-    )
+    !hasChanges &&
+      React.createElement(Text, { color: 'green', marginTop: 1 }, 'No changes between catalogs.')
   );
 }

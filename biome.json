@@ -1,0 +1,63 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": ["**", "!**/scratch", "!**/node_modules", "!**/output", "!**/coverage"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedFunctionParameters": "warn",
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "warn",
+        "noUnsafeFinally": "warn",
+        "useYield": "warn",
+        "noInvalidUseBeforeDeclaration": "warn"
+      },
+      "complexity": {
+        "useLiteralKeys": "warn",
+        "useOptionalChain": "warn",
+        "noStaticOnlyClass": "warn"
+      },
+      "style": {
+        "useBlockStatements": "off",
+        "useTemplate": "warn",
+        "useConst": "warn"
+      },
+      "suspicious": {
+        "noAssignInExpressions": "warn",
+        "noAsyncPromiseExecutor": "warn",
+        "noTemplateCurlyInString": "warn",
+        "noControlCharactersInRegex": "warn",
+        "useIterableCallbackReturn": "warn",
+        "useAdjacentOverloadSignatures": "warn",
+        "noShadowRestrictedNames": "warn"
+      },
+      "performance": {
+        "noDynamicNamespaceImportAccess": "warn"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "always",
+      "trailingCommas": "none",
+      "arrowParentheses": "asNeeded"
+    }
+  }
+}

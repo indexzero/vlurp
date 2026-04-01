@@ -1,6 +1,6 @@
-import {describe, it} from 'node:test';
-import {strict as assert} from 'node:assert';
-import {scanFileContent, summarizeScan} from '../src/scanner.js';
+import { strict as assert } from 'node:assert';
+import { describe, it } from 'node:test';
+import { scanFileContent, summarizeScan } from '../src/scanner.js';
 
 describe('scanner', () => {
   describe('scanFileContent', () => {
@@ -47,7 +47,8 @@ This skill helps you write tests.
     });
 
     it('should count multiple tool references', () => {
-      const content = 'First, use Bash to run lint. Then use Bash to run tests. Finally, Bash again.';
+      const content =
+        'First, use Bash to run lint. Then use Bash to run tests. Finally, Bash again.';
       const result = scanFileContent(content, 'test.md');
       assert.equal(result.tools.Bash, 3);
     });

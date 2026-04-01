@@ -1,8 +1,6 @@
-import {createHash} from 'node:crypto';
-import {
-  readFile, writeFile, readdir
-} from 'node:fs/promises';
-import {join, relative} from 'node:path';
+import { createHash } from 'node:crypto';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { join, relative } from 'node:path';
 
 /**
  * Compute SHA-256 hash of a file's contents.
@@ -11,7 +9,7 @@ export async function hashFile(filePath) {
   const content = await readFile(filePath);
   const hash = createHash('sha256').update(content).digest('hex');
   const size = content.length;
-  return {sha256: hash, size};
+  return { sha256: hash, size };
 }
 
 /**
@@ -22,17 +20,15 @@ export async function hashDirectory(dirPath) {
   const files = {};
 
   async function walk(dir) {
-    const entries = await readdir(dir, {withFileTypes: true});
+    const entries = await readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = join(dir, entry.name);
       if (entry.isDirectory()) {
-        // eslint-disable-next-line no-await-in-loop
         await walk(fullPath);
       } else {
         const relPath = relative(dirPath, fullPath);
-        // eslint-disable-next-line no-await-in-loop
-        const {sha256, size} = await hashFile(fullPath);
-        files[relPath] = {sha256, size};
+        const { sha256, size } = await hashFile(fullPath);
+        files[relPath] = { sha256, size };
       }
     }
   }
@@ -44,12 +40,12 @@ export async function hashDirectory(dirPath) {
 /**
  * Create a lineage record for a fetch operation.
  */
-export function createLineageRecord({source, ref, refType, filters, preset, asName, files}) {
+export function createLineageRecord({ source, ref, refType, filters, preset, asName, files }) {
   return {
     source: `github:${source}`,
     ref: ref || null,
-    ref_type: refType || (ref ? 'commit' : null), // eslint-disable-line camelcase
-    fetched_at: new Date().toISOString(), // eslint-disable-line camelcase
+    ref_type: refType || (ref ? 'commit' : null),
+    fetched_at: new Date().toISOString(),
     filters: filters || [],
     preset: preset || null,
     as: asName || null,
@@ -81,7 +77,7 @@ export async function appendLineage(jsonlPath, record) {
   });
 
   filtered.push(JSON.stringify(record));
-  await writeFile(jsonlPath, filtered.join('\n') + '\n');
+  await writeFile(jsonlPath, `${filtered.join('\n')}\n`);
 }
 
 /**
@@ -144,20 +140,28 @@ export async function verifyFiles(basePath, records) {
   for (const [relPath, expected] of tracked) {
     const fullPath = join(basePath, relPath);
     try {
-      // eslint-disable-next-line no-await-in-loop
-      const {sha256} = await hashFile(fullPath);
+      const { sha256 } = await hashFile(fullPath);
       if (sha256 === expected.sha256) {
         results.push({
-          file: relPath, status: 'ok', expected: expected.sha256, actual: sha256
+          file: relPath,
+          status: 'ok',
+          expected: expected.sha256,
+          actual: sha256
         });
       } else {
         results.push({
-          file: relPath, status: 'modified', expected: expected.sha256, actual: sha256
+          file: relPath,
+          status: 'modified',
+          expected: expected.sha256,
+          actual: sha256
         });
       }
     } catch {
       results.push({
-        file: relPath, status: 'missing', expected: expected.sha256, actual: null
+        file: relPath,
+        status: 'missing',
+        expected: expected.sha256,
+        actual: null
       });
     }
   }
@@ -173,7 +177,10 @@ export async function verifyFiles(basePath, records) {
 
       if (!tracked.has(relPath)) {
         results.push({
-          file: relPath, status: 'untracked', expected: null, actual: diskFiles[relPath].sha256
+          file: relPath,
+          status: 'untracked',
+          expected: null,
+          actual: diskFiles[relPath].sha256
         });
       }
     }

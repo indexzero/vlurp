@@ -1,4 +1,4 @@
-import {request} from 'undici';
+import { request } from 'undici';
 
 /**
  * Structure detection patterns and their associated filters.
@@ -64,7 +64,7 @@ const STRUCTURE_PATTERNS = [
 async function fetchRepoTree(user, repo) {
   try {
     const url = `https://api.github.com/repos/${user}/${repo}/git/trees/HEAD?recursive=1`;
-    const {statusCode, body} = await request(url, {
+    const { statusCode, body } = await request(url, {
       headers: {
         'User-Agent': 'vlurp-cli',
         Accept: 'application/vnd.github.v3+json'

@@ -21,16 +21,16 @@ export function diffCatalogs(oldCatalog, newCatalog) {
     if (skill?.source) {
       const src = skill.source;
       sources[src] ||= {
-        old_ref: null, // eslint-disable-line camelcase
-        new_ref: null // eslint-disable-line camelcase
+        old_ref: null,
+        new_ref: null
       };
 
       if (oldSkill?.ref) {
-        sources[src].old_ref = oldSkill.ref; // eslint-disable-line camelcase
+        sources[src].old_ref = oldSkill.ref;
       }
 
       if (newSkill?.ref) {
-        sources[src].new_ref = newSkill.ref; // eslint-disable-line camelcase
+        sources[src].new_ref = newSkill.ref;
       }
     }
   }
@@ -38,7 +38,11 @@ export function diffCatalogs(oldCatalog, newCatalog) {
   // Diff each skill
   const skills = {};
   const counts = {
-    total: 0, new: 0, removed: 0, changed: 0, unchanged: 0
+    total: 0,
+    new: 0,
+    removed: 0,
+    changed: 0,
+    unchanged: 0
   };
 
   for (const name of [...allNames].sort()) {
@@ -63,30 +67,26 @@ export function diffCatalogs(oldCatalog, newCatalog) {
     }
   }
 
-  return {sources, skills, summary: counts};
+  return { sources, skills, summary: counts };
 }
 
 function buildNewSkillDiff(skill) {
   return {
     status: 'new',
-    version: {old: null, new: skill.version || null},
-    /* eslint-disable camelcase -- SPEC.4 JSON schema */
-    tool_surface: {added: [...(skill.tool_surface || [])], removed: []},
-    command_surface: {added: [...(skill.command_surface || [])], removed: []},
-    supporting_files: {added: [...(skill.supporting_files || [])], removed: []}
-    /* eslint-enable camelcase */
+    version: { old: null, new: skill.version || null },
+    tool_surface: { added: [...(skill.tool_surface || [])], removed: [] },
+    command_surface: { added: [...(skill.command_surface || [])], removed: [] },
+    supporting_files: { added: [...(skill.supporting_files || [])], removed: [] }
   };
 }
 
 function buildRemovedSkillDiff(skill) {
   return {
     status: 'removed',
-    version: {old: skill.version || null, new: null},
-    /* eslint-disable camelcase -- SPEC.4 JSON schema */
-    tool_surface: {added: [], removed: [...(skill.tool_surface || [])]},
-    command_surface: {added: [], removed: [...(skill.command_surface || [])]},
-    supporting_files: {added: [], removed: [...(skill.supporting_files || [])]}
-    /* eslint-enable camelcase */
+    version: { old: skill.version || null, new: null },
+    tool_surface: { added: [], removed: [...(skill.tool_surface || [])] },
+    command_surface: { added: [], removed: [...(skill.command_surface || [])] },
+    supporting_files: { added: [], removed: [...(skill.supporting_files || [])] }
   };
 }
 
@@ -96,15 +96,18 @@ function buildChangedSkillDiff(oldSkill, newSkill) {
     new: newSkill.version || null
   };
 
-  /* eslint-disable camelcase -- SPEC.4 JSON schema */
   const toolDiff = diffArrays(oldSkill.tool_surface || [], newSkill.tool_surface || []);
   const commandDiff = diffArrays(oldSkill.command_surface || [], newSkill.command_surface || []);
   const fileDiff = diffArrays(oldSkill.supporting_files || [], newSkill.supporting_files || []);
 
-  const hasChanges = versionDiff.old !== versionDiff.new
-    || toolDiff.added.length > 0 || toolDiff.removed.length > 0
-    || commandDiff.added.length > 0 || commandDiff.removed.length > 0
-    || fileDiff.added.length > 0 || fileDiff.removed.length > 0;
+  const hasChanges =
+    versionDiff.old !== versionDiff.new ||
+    toolDiff.added.length > 0 ||
+    toolDiff.removed.length > 0 ||
+    commandDiff.added.length > 0 ||
+    commandDiff.removed.length > 0 ||
+    fileDiff.added.length > 0 ||
+    fileDiff.removed.length > 0;
 
   return {
     status: hasChanges ? 'changed' : 'unchanged',
@@ -113,7 +116,6 @@ function buildChangedSkillDiff(oldSkill, newSkill) {
     command_surface: commandDiff,
     supporting_files: fileDiff
   };
-  /* eslint-enable camelcase */
 }
 
 function diffArrays(oldArray, newArray) {
@@ -167,9 +169,10 @@ export function formatCatalogDiff(diff) {
     }
 
     // Changed
-    const versionStr = skillDiff.version.old === skillDiff.version.new
-      ? (skillDiff.version.new || '')
-      : `${skillDiff.version.old || '?'} -> ${skillDiff.version.new || '?'}`;
+    const versionStr =
+      skillDiff.version.old === skillDiff.version.new
+        ? skillDiff.version.new || ''
+        : `${skillDiff.version.old || '?'} -> ${skillDiff.version.new || '?'}`;
     lines.push(`  ${name}  ${versionStr}`);
     formatSurfaceDelta(lines, 'tools', skillDiff.tool_surface);
     formatSurfaceDelta(lines, 'commands', skillDiff.command_surface);
@@ -179,8 +182,9 @@ export function formatCatalogDiff(diff) {
 
   // Summary
   const s = diff.summary;
-  const summaryText = `Summary: ${s.total} skills`
-    + ` (${s.new} new, ${s.removed} removed, ${s.changed} changed, ${s.unchanged} unchanged)`;
+  const summaryText =
+    `Summary: ${s.total} skills` +
+    ` (${s.new} new, ${s.removed} removed, ${s.changed} changed, ${s.unchanged} unchanged)`;
   lines.push(summaryText);
 
   return lines.join('\n');

@@ -1,11 +1,11 @@
-import {resolve, join} from 'node:path';
-import {writeFile} from 'node:fs/promises';
-import React, {useState, useEffect} from 'react';
-import {Box, Text} from 'ink';
+import { writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import {buildCatalog} from '../catalog.js';
+import React, { useEffect, useState } from 'react';
+import { buildCatalog } from '../catalog.js';
 
-export function CatalogCommand({targetPath, outputFile}) {
+export function CatalogCommand({ targetPath, outputFile }) {
   const [status, setStatus] = useState('cataloging');
   const [error, setError] = useState(null);
   const [catalog, setCatalog] = useState(null);
@@ -18,9 +18,9 @@ export function CatalogCommand({targetPath, outputFile}) {
 
         // Write catalog.json
         const outPath = outputFile || join(resolvedPath, 'catalog.json');
-        await writeFile(outPath, JSON.stringify(catalogData, null, 2) + '\n');
+        await writeFile(outPath, `${JSON.stringify(catalogData, null, 2)}\n`);
 
-        setCatalog({data: catalogData, path: outPath});
+        setCatalog({ data: catalogData, path: outPath });
         setStatus('complete');
       } catch (err) {
         setError(err.message);
@@ -34,8 +34,8 @@ export function CatalogCommand({targetPath, outputFile}) {
   if (status === 'error') {
     return React.createElement(
       Box,
-      {flexDirection: 'column'},
-      React.createElement(Text, {color: 'red'}, `Error: ${error}`)
+      { flexDirection: 'column' },
+      React.createElement(Text, { color: 'red' }, `Error: ${error}`)
     );
   }
 
@@ -43,7 +43,7 @@ export function CatalogCommand({targetPath, outputFile}) {
     return React.createElement(
       Box,
       null,
-      React.createElement(Text, null, React.createElement(Spinner, {type: 'dots'})),
+      React.createElement(Text, null, React.createElement(Spinner, { type: 'dots' })),
       React.createElement(Text, null, ' Building catalog...')
     );
   }
@@ -52,20 +52,21 @@ export function CatalogCommand({targetPath, outputFile}) {
 
   return React.createElement(
     Box,
-    {flexDirection: 'column'},
+    { flexDirection: 'column' },
     React.createElement(
       Text,
-      {color: 'green', bold: true},
+      { color: 'green', bold: true },
       `Catalog: ${skillCount} skill${skillCount === 1 ? '' : 's'} indexed`
     ),
     React.createElement(Text, null, ''),
     ...Object.entries(catalog.data.skills).map(([name, skill]) =>
       React.createElement(
         Text,
-        {key: name, color: 'gray'},
+        { key: name, color: 'gray' },
         `  ${name.padEnd(30)} ${skill.source}${skill.ref ? ` @${skill.ref}` : ''}`
-      )),
+      )
+    ),
     React.createElement(Text, null, ''),
-    React.createElement(Text, {color: 'gray'}, `Written to ${catalog.path}`)
+    React.createElement(Text, { color: 'gray' }, `Written to ${catalog.path}`)
   );
 }

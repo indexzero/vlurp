@@ -1,10 +1,10 @@
+import { strict as assert } from 'node:assert';
+import { join } from 'node:path';
 import process from 'node:process';
-import {describe, it} from 'node:test';
-import {strict as assert} from 'node:assert';
-import {join} from 'node:path';
-import {minimatch} from 'minimatch';
-import {Validator, Parser} from '../src/remote.js';
-import {resolveTargetPath} from '../src/commands/fetch.js';
+import { describe, it } from 'node:test';
+import { minimatch } from 'minimatch';
+import { resolveTargetPath } from '../src/commands/fetch.js';
+import { Parser, Validator } from '../src/remote.js';
 
 describe('Validator', () => {
   const validator = new Validator();
@@ -63,17 +63,11 @@ describe('Parser', () => {
     });
 
     it('should throw on invalid format', () => {
-      assert.throws(
-        () => parser.parse('invalid-format'),
-        /Invalid input format/
-      );
+      assert.throws(() => parser.parse('invalid-format'), /Invalid input format/);
     });
 
     it('should throw on invalid URL', () => {
-      assert.throws(
-        () => parser.parse('https://gitlab.com/user/repo'),
-        /Invalid input format/
-      );
+      assert.throws(() => parser.parse('https://gitlab.com/user/repo'), /Invalid input format/);
     });
   });
 });
@@ -121,7 +115,8 @@ describe('Filter functionality', () => {
     ];
 
     const filtered = testFiles.filter(file =>
-      filters.some(pattern => minimatch(file, pattern, {matchBase: true})));
+      filters.some(pattern => minimatch(file, pattern, { matchBase: true }))
+    );
 
     assert.deepEqual(filtered, [
       'README.md',
@@ -141,17 +136,12 @@ describe('Filter functionality', () => {
       '.claude/commands/tm/add-subtask/add-subtask.md'
     ];
 
-    const otherPaths = [
-      'README.md',
-      'CLAUDE.md',
-      '.taskmaster/CLAUDE.md',
-      'src/index.js'
-    ];
+    const otherPaths = ['README.md', 'CLAUDE.md', '.taskmaster/CLAUDE.md', 'src/index.js'];
 
     // All .claude paths should match .claude/**
     for (const path of claudePaths) {
       assert.ok(
-        minimatch(path, '.claude/**', {dot: true}),
+        minimatch(path, '.claude/**', { dot: true }),
         `Expected ${path} to match .claude/**`
       );
     }
@@ -159,7 +149,7 @@ describe('Filter functionality', () => {
     // Other paths should not match
     for (const path of otherPaths) {
       assert.ok(
-        !minimatch(path, '.claude/**', {dot: true}),
+        !minimatch(path, '.claude/**', { dot: true }),
         `Expected ${path} to NOT match .claude/**`
       );
     }
@@ -167,7 +157,18 @@ describe('Filter functionality', () => {
 
   it('should have correctly formatted default filters for glob', () => {
     // Default filters as defined in cli.js
-    const defaultFilters = ['.claude/**', 'CLAUDE.md', '*.md', '!README.md', '!CONTRIBUTING.md', '!LICENSE.md', '!CHANGELOG.md', '!CODE_OF_CONDUCT.md', 'agents/**', 'commands/**'];
+    const defaultFilters = [
+      '.claude/**',
+      'CLAUDE.md',
+      '*.md',
+      '!README.md',
+      '!CONTRIBUTING.md',
+      '!LICENSE.md',
+      '!CHANGELOG.md',
+      '!CODE_OF_CONDUCT.md',
+      'agents/**',
+      'commands/**'
+    ];
 
     // Simply verify our default filters are properly formatted for glob
     // We trust glob to handle the actual pattern matching correctly

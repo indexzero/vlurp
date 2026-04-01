@@ -1,15 +1,11 @@
-import {
-  describe, it, beforeEach, afterEach
-} from 'node:test';
-import {strict as assert} from 'node:assert';
-import {
-  mkdtemp, writeFile, readFile, mkdir, rm
-} from 'node:fs/promises';
-import {join} from 'node:path';
-import {tmpdir} from 'node:os';
-import {parseVlurpfile, updateRef, updateRefs} from '../src/vlurpfile.js';
-import {buildCatalog} from '../src/catalog.js';
-import {diffCatalogs, formatCatalogDiff} from '../src/catalog-diff.js';
+import { strict as assert } from 'node:assert';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, it } from 'node:test';
+import { buildCatalog } from '../src/catalog.js';
+import { diffCatalogs, formatCatalogDiff } from '../src/catalog-diff.js';
+import { parseVlurpfile, updateRef, updateRefs } from '../src/vlurpfile.js';
 
 describe('upgrade - vlurpfile rewriting', () => {
   let tempDir;
@@ -19,7 +15,7 @@ describe('upgrade - vlurpfile rewriting', () => {
   });
 
   afterEach(async () => {
-    await rm(tempDir, {recursive: true, force: true});
+    await rm(tempDir, { recursive: true, force: true });
   });
 
   it('should update --ref in a vlurpfile on disk', async () => {
@@ -164,14 +160,16 @@ describe('upgrade - catalog integration', () => {
   });
 
   afterEach(async () => {
-    await rm(tempDir, {recursive: true, force: true});
+    await rm(tempDir, { recursive: true, force: true });
   });
 
   it('should build catalog from lineage and SKILL.md on disk', async () => {
     // Set up a minimal skills directory with lineage and a SKILL.md
     const skillDir = join(tempDir, 'myskill');
-    await mkdir(skillDir, {recursive: true});
-    await writeFile(join(skillDir, 'SKILL.md'), `---
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(
+      join(skillDir, 'SKILL.md'),
+      `---
 name: myskill
 version: 1.0.0
 description: A test skill
@@ -183,21 +181,22 @@ allowed-tools:
 # My Skill
 
 Use Bash tool to run commands.
-`);
+`
+    );
 
     // Write lineage record
     const lineageRecord = {
       source: 'github:user/repo',
       ref: 'abc1234',
-      fetched_at: '2026-03-15T00:00:00Z', // eslint-disable-line camelcase
+      fetched_at: '2026-03-15T00:00:00Z',
       filters: [],
       preset: null,
       as: 'myskill',
       files: {
-        'SKILL.md': {sha256: 'fake', size: 100}
+        'SKILL.md': { sha256: 'fake', size: 100 }
       }
     };
-    await writeFile(join(tempDir, '.vlurp.jsonl'), JSON.stringify(lineageRecord) + '\n');
+    await writeFile(join(tempDir, '.vlurp.jsonl'), `${JSON.stringify(lineageRecord)}\n`);
 
     const catalog = await buildCatalog(tempDir);
     assert.ok(catalog.skills.myskill);
@@ -215,9 +214,9 @@ Use Bash tool to run commands.
           source: 'github:user/repo',
           ref: 'old123',
           version: '1.0.0',
-          tool_surface: ['Bash'], // eslint-disable-line camelcase
-          command_surface: [], // eslint-disable-line camelcase
-          supporting_files: [] // eslint-disable-line camelcase
+          tool_surface: ['Bash'],
+          command_surface: [],
+          supporting_files: []
         }
       }
     };
@@ -229,16 +228,16 @@ Use Bash tool to run commands.
           source: 'github:user/repo',
           ref: 'new456',
           version: '1.1.0',
-          tool_surface: ['Bash', 'Read'], // eslint-disable-line camelcase
-          command_surface: [], // eslint-disable-line camelcase
-          supporting_files: ['helper.md'] // eslint-disable-line camelcase
+          tool_surface: ['Bash', 'Read'],
+          command_surface: [],
+          supporting_files: ['helper.md']
         }
       }
     };
 
     const diff = diffCatalogs(preCatalog, postCatalog);
     assert.equal(diff.skills.myskill.status, 'changed');
-    assert.deepEqual(diff.skills.myskill.version, {old: '1.0.0', new: '1.1.0'});
+    assert.deepEqual(diff.skills.myskill.version, { old: '1.0.0', new: '1.1.0' });
     assert.deepEqual(diff.skills.myskill.tool_surface.added, ['Read']);
     assert.deepEqual(diff.skills.myskill.supporting_files.added, ['helper.md']);
 
@@ -252,11 +251,11 @@ Use Bash tool to run commands.
 
   it('should write catalog.json and catalog.prev.json', async () => {
     // Write an existing catalog.json
-    const existingCatalog = {generated_at: '2026-03-14T00:00:00Z', skills: {}}; // eslint-disable-line camelcase
-    await writeFile(join(tempDir, 'catalog.json'), JSON.stringify(existingCatalog, null, 2) + '\n');
+    const existingCatalog = { generated_at: '2026-03-14T00:00:00Z', skills: {} };
+    await writeFile(join(tempDir, 'catalog.json'), `${JSON.stringify(existingCatalog, null, 2)}\n`);
 
     // Simulate the saveCatalogs pattern from upgrade
-    const {rename: fsRename} = await import('node:fs/promises');
+    const { rename: fsRename } = await import('node:fs/promises');
     const catalogPath = join(tempDir, 'catalog.json');
     const prevPath = join(tempDir, 'catalog.prev.json');
 
@@ -264,8 +263,11 @@ Use Bash tool to run commands.
     await fsRename(catalogPath, prevPath);
 
     // Write new
-    const newCatalog = {generated_at: '2026-03-15T00:00:00Z', skills: {a: {version: '1.0.0'}}}; // eslint-disable-line camelcase
-    await writeFile(catalogPath, JSON.stringify(newCatalog, null, 2) + '\n');
+    const newCatalog = {
+      generated_at: '2026-03-15T00:00:00Z',
+      skills: { a: { version: '1.0.0' } }
+    };
+    await writeFile(catalogPath, `${JSON.stringify(newCatalog, null, 2)}\n`);
 
     // Verify both files exist
     const prev = JSON.parse(await readFile(prevPath, 'utf8'));
