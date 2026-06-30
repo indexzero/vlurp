@@ -31,6 +31,13 @@ jobs:
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
+      # `changeset publish` runs `pnpm publish`, and pnpm delegates the npm
+      # OIDC trusted-publishing token exchange to the npm CLI — which must be
+      # >= 11.5.1. Node 22 ships npm 10.x, so without this the publish goes out
+      # unauthenticated and the registry returns E404.
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@latest
+
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
