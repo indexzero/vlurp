@@ -14,6 +14,13 @@ describe('CLI', () => {
     assert.ok(output.includes('--help'), 'Help should show --help option');
     assert.ok(output.includes('SOURCE... DEST'), 'Help should describe cp-style operands');
     assert.ok(output.includes('pkg:github/'), 'Help should describe PURL sources');
+    assert.ok(output.includes('Presets:'), 'Help should keep presets as a first-class mode');
+    assert.ok(output.includes('--preset'), 'Help should document the preset option');
+    assert.ok(output.includes('--glob'), 'Help should document case-sensitive transfer patterns');
+    assert.ok(
+      output.includes('--iglob'),
+      'Help should document case-insensitive transfer patterns'
+    );
   });
 
   it('should show usage when called without arguments', () => {
@@ -33,7 +40,7 @@ describe('CLI', () => {
     );
   });
 
-  it('rejects legacy selection flags with PURL operands', () => {
+  it('keeps repository selection flags separate from PURL operands', () => {
     assert.throws(
       () =>
         execSync(`node ${binPath} pkg:github/user/repo#docs ./docs --filter '*.md'`, {
@@ -41,6 +48,17 @@ describe('CLI', () => {
           stdio: 'pipe'
         }),
       error => error.status !== 0 && error.stderr.includes('cannot be used with PURL sources')
+    );
+  });
+
+  it('rejects an unknown preset before resolving a remote source', () => {
+    assert.throws(
+      () =>
+        execSync(`node ${binPath} pkg:github/user/repo ./dest --preset made-up`, {
+          encoding: 'utf8',
+          stdio: 'pipe'
+        }),
+      error => error.status !== 0 && error.stderr.includes('unknown preset')
     );
   });
 });

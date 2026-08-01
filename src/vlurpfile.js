@@ -71,6 +71,8 @@ function parseCopyEntry(args) {
     targetPath: resolve(destination),
     rootDir: resolve(destination),
     filters: [],
+    globs: [],
+    iglobs: [],
     preset: null,
     ref: parseSourceOperand(sources[0]).ref,
     as: null,
@@ -81,12 +83,20 @@ function parseCopyEntry(args) {
     const arg = args[index];
     if (arg === '-f' || arg === '--force') {
       entry.force = true;
+    } else if (arg === '--glob' && args[index + 1]) {
+      entry.globs.push(args[++index]);
+    } else if (arg === '--iglob' && args[index + 1]) {
+      entry.iglobs.push(args[++index]);
+    } else if (arg === '--preset' && args[index + 1]) {
+      entry.preset = args[++index];
     } else if (arg === '-n' || arg === '--dry-run' || arg === '-q' || arg === '--quiet') {
       // Invocation-level presentation flags are valid but not persisted on the entry.
     } else {
       throw new Error(`Unsupported option in cp-style vlurpfile entry: ${arg}`);
     }
   }
+
+  assertKnownPreset(entry.preset);
 
   return entry;
 }
@@ -126,6 +136,8 @@ function parseLegacyEntry(args) {
     }
   }
 
+  assertKnownPreset(entry.preset);
+
   if (entry.as && entry.rootDir) {
     entry.targetPath = resolve(entry.rootDir, entry.as);
   } else if (entry.as) {
@@ -138,6 +150,12 @@ function parseLegacyEntry(args) {
   }
 
   return entry;
+}
+
+function assertKnownPreset(preset) {
+  if (preset && !PRESETS[preset]) {
+    throw new Error(`Unknown preset "${preset}"`);
+  }
 }
 
 function updateLineRefs(line, updates) {

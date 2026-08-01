@@ -24,6 +24,24 @@ describe('vlurpfile parser', () => {
     assert.equal(entry.destination, './destination');
   });
 
+  it('parses glob, iglob, and preset transfer rules for PURL copies', () => {
+    const [entry] = parseVlurpfile(
+      "vlurp pkg:github/user/repo ./dest --preset skills --glob '!README.md' --iglob '**/skill.md'"
+    );
+
+    assert.equal(entry.preset, 'skills');
+    assert.deepEqual(entry.globs, ['!README.md']);
+    assert.deepEqual(entry.iglobs, ['**/skill.md']);
+  });
+
+  it('rejects unknown presets', () => {
+    assert.throws(
+      () => parseVlurpfile('vlurp pkg:github/user/repo ./dest --preset made-up'),
+      /Unknown preset/
+    );
+    assert.throws(() => parseVlurpfile('vlurp user/repo --preset made-up'), /Unknown preset/);
+  });
+
   it('distinguishes inline comments from PURL subpaths', () => {
     const [entry] = parseVlurpfile(
       'vlurp pkg:github/user/repo@abc1234#skills/* ./skills/ --force # reviewed source'

@@ -21,6 +21,7 @@ describe('copySources', () => {
     await mkdir(destination);
     await writeFile(join(fixtureRepository, 'skills', 'writing-a', 'SKILL.md'), 'a');
     await writeFile(join(fixtureRepository, 'skills', 'writing-b', 'SKILL.md'), 'b');
+    await writeFile(join(fixtureRepository, 'README.md'), 'boilerplate');
 
     fetcher = {
       async materialize() {
@@ -72,6 +73,20 @@ describe('copySources', () => {
 
     assert.equal(result.status, 'cancelled');
     assert.equal(await readFile(join(destination, 'writing-a', 'SKILL.md'), 'utf8'), 'local');
+  });
+
+  it('expands presets into transfer rules for PURL cp sources', async () => {
+    await writeFile(join(fixtureRepository, 'skills', 'writing-a', 'script.js'), 'ignored');
+    await copySources({
+      sources: ['pkg:github/user/repo#skills/writing-a'],
+      destination,
+      preset: 'skills',
+      force: true,
+      fetcher
+    });
+
+    assert.equal(await readFile(join(destination, 'writing-a', 'SKILL.md'), 'utf8'), 'a');
+    await assert.rejects(readFile(join(destination, 'writing-a', 'script.js')), /ENOENT/);
   });
 
   it('places lineage inside a newly named directory copy', async () => {

@@ -58,7 +58,16 @@ export function createLineageRecord({ source, ref, refType, filters, preset, asN
  * are relative to the directory containing .vlurp.jsonl, so verification no
  * longer has to infer layout from a repository name or legacy --as flag.
  */
-export function createCopyLineageRecord({ source, sourceKey, ref, destination, files }) {
+export function createCopyLineageRecord({
+  source,
+  sourceKey,
+  ref,
+  destination,
+  globs = [],
+  iglobs = [],
+  preset = null,
+  files
+}) {
   return {
     schema: 2,
     source,
@@ -67,6 +76,9 @@ export function createCopyLineageRecord({ source, sourceKey, ref, destination, f
     ref_type: ref ? 'git' : null,
     fetched_at: new Date().toISOString(),
     destination,
+    globs,
+    iglobs,
+    preset,
     files_root_relative: true,
     files
   };

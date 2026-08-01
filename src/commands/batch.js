@@ -74,7 +74,10 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet: _quiet }) {
               const copyResult = await copySources({
                 sources: entry.sources,
                 destination: entry.destination,
-                force: force || entry.force
+                force: force || entry.force,
+                globs: entry.globs,
+                iglobs: entry.iglobs,
+                preset: entry.preset
               });
               batchResults.push({
                 ...entry,

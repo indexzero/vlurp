@@ -4,7 +4,7 @@ import Spinner from 'ink-spinner';
 import React, { useEffect, useState } from 'react';
 import { copySources } from '../copy-sources.js';
 
-export function CopyCommand({ sources, destination, force, dryRun, quiet }) {
+export function CopyCommand({ sources, destination, force, dryRun, quiet, globs, iglobs, preset }) {
   const [status, setStatus] = useState('copying');
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
@@ -12,7 +12,15 @@ export function CopyCommand({ sources, destination, force, dryRun, quiet }) {
   useEffect(() => {
     async function performCopy() {
       try {
-        const copyResult = await copySources({ sources, destination, force, dryRun });
+        const copyResult = await copySources({
+          sources,
+          destination,
+          force,
+          dryRun,
+          globs,
+          iglobs,
+          preset
+        });
         setResult(copyResult);
         setStatus(copyResult.status);
       } catch (copyError) {
@@ -23,7 +31,7 @@ export function CopyCommand({ sources, destination, force, dryRun, quiet }) {
     }
 
     performCopy();
-  }, [sources, destination, force, dryRun]);
+  }, [sources, destination, force, dryRun, globs, iglobs, preset]);
 
   if (status === 'error') {
     return React.createElement(Text, { color: 'red' }, `Error: ${error}`);

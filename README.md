@@ -49,6 +49,35 @@ vlurp \
   ./skills/
 ```
 
+## Presets
+
+Presets remain a first-class way to fetch common repository structures without spelling out globs. They work with both the cp-style interface and repository shorthand:
+
+```sh
+vlurp 'pkg:github/obra/superpowers' ./.claude/skills --preset skills
+vlurp obra/superpowers --preset skills -d ./.claude/skills --ref e4f5a6b
+vlurp eyaltoledano/claude-task-master --preset claude -d ./config
+```
+
+| Preset | Selects |
+|--------|---------|
+| `claude` | `.claude/**`, `CLAUDE.md` |
+| `skills` | `skills/**`, `SKILL.md`, Markdown support files |
+| `agents` | `agents/**`, `commands/**`, Markdown support files |
+| `docs` | Markdown documentation excluding boilerplate |
+| `all-md` | All Markdown files |
+| `minimal` | Only `.claude/**` and `CLAUDE.md` |
+
+With cp-style operands, a preset filters the files beneath each selected source without changing where that source is placed. Add `--glob` or `--iglob` to refine a preset; explicit patterns are applied after the preset.
+
+```sh
+vlurp 'pkg:github/obra/superpowers#skills' ./skills \
+  --preset skills \
+  --glob '!**/experimental/**'
+```
+
+`--glob` is case-sensitive and `--iglob` is case-insensitive. Both are repeatable. A leading `!` excludes matches. If any positive pattern is present, unmatched files are excluded; with exclusion-only patterns, unmatched files remain included.
+
 Check that nothing has been modified since you fetched:
 
 ```
@@ -108,7 +137,7 @@ Process multiple repos from a `.vlurpfile`:
 vlurp 'pkg:github/anthropics/skills@b7c8d9e#skills/*' ./skills/
 
 # obra/superpowers -- Core agent patterns
-vlurp 'pkg:github/obra/superpowers@e4f5a6b#skills/*' ./skills/
+vlurp obra/superpowers --preset skills -d ./skills --ref e4f5a6b
 
 # Microsoft Amplifier -- multi-agent framework
 vlurp 'pkg:github/microsoft/amplifier@4a5b6c7#**/*.md' ./docs/
@@ -122,6 +151,8 @@ $ vlurp batch .vlurpfile
 
 ```
 vlurp SOURCE... DEST                 Copy PURL sources into local files
+vlurp SOURCE... DEST --preset NAME   Copy using a named selection preset
+vlurp REPOSITORY --preset NAME       Repository shorthand remains supported
 vlurp batch <vlurpfile>              Process a .vlurpfile (batch fetch)
 vlurp verify <path>                  Check file integrity against lineage
 vlurp pin [source]                   Pin sources to current upstream HEAD
@@ -136,19 +167,27 @@ vlurp catalog-diff [old] [new]       Compare catalog snapshots
 ## Flags
 
 ```
+-d <dir>              Root output directory for repository selection mode
+--ref <sha|tag>       Pin a repository-mode fetch to a Git ref
+--as <name>           Override its output directory name
+--preset <name>       Apply a maintained named selection preset
+--glob <pattern>      Apply a case-sensitive cp transfer pattern
+--iglob <pattern>     Apply a case-insensitive cp transfer pattern
+--filter <glob>       Add repository-mode selection patterns
+--auto                Detect a suitable repository preset
 --dry-run, -n         Preview without writing
 --force, -f           Overwrite without prompting
 --json                Machine-readable output (catalog-diff)
 --vlurpfile <path>    Explicit .vlurpfile path (upgrade)
 ```
 
-The older `<user>/<repo> -d ... --filter ... --ref ...` form remains supported for migration. New commands should put the ref and selection in the PURL source.
+PURL operands determine remote sources and local placement. `--preset`, `--glob`, and `--iglob` determine the files transferred beneath those sources. Repository shorthand with `--preset` or `--filter` remains supported.
 
 ## Feature guides
 
 | Guide | Covers |
 |-------|--------|
-| **[Copying Remote Files](doc/fetch.md)** | PURL sources, selectors, refs, and cp semantics |
+| **[Copying Remote Files](doc/fetch.md)** | PURL sources, presets, selectors, refs, and cp semantics |
 | **[The .vlurpfile](doc/vlurpfile.md)** | Batch processing, manifest format, intent vs reality |
 | **[Supply Chain Security](doc/supply-chain.md)** | Lineage, verify, pin, scan, threat model |
 | **[Upgrades & Change Detection](doc/upgrade.md)** | outdated, diff, upgrade, catalog, catalog-diff |

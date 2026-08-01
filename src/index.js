@@ -39,4 +39,5 @@ export {
   replaceSourceRef,
   sourceRepositoryKey
 } from './source-operand.js';
+export { compileTransferRules } from './transfer-rules.js';
 export { parseVlurpfile, updateRef, updateRefs } from './vlurpfile.js';

@@ -14,6 +14,9 @@ import { parseSourceOperand, sourceRepositoryKey } from './source-operand.js';
 export async function copySources({
   sources,
   destination,
+  globs = [],
+  iglobs = [],
+  preset = null,
   force = false,
   dryRun = false,
   confirm = confirmOverwrite,
@@ -35,7 +38,7 @@ export async function copySources({
       selections.push(...(await selectRepositoryEntries(repository.path, source)));
     }
 
-    const plan = await createCopyPlan(selections, destination);
+    const plan = await createCopyPlan(selections, destination, { globs, iglobs, preset });
     const existing = plan.entries.filter(entry => entry.exists);
     if (!dryRun && existing.length > 0 && !force) {
       const accepted = await confirm(existing.map(entry => entry.targetPath));
@@ -64,6 +67,9 @@ export async function copySources({
         sourceKey: `${sourceRepositoryKey(source)}#${source.subpath}`,
         ref: source.ref,
         destination: relative(plan.lineageRoot, plan.destinationPath) || '.',
+        globs,
+        iglobs,
+        preset,
         files
       });
       await appendLineage(join(plan.lineageRoot, '.vlurp.jsonl'), record);

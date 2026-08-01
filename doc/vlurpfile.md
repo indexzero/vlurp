@@ -10,18 +10,20 @@ It is not a package manifest: there is no dependency resolution, registry, semve
 # .vlurpfile -- reviewed and pinned remote files
 
 vlurp 'pkg:github/anthropics/skills@b7c8d9e#skills/*' ./.claude/skills/
-vlurp 'pkg:github/obra/superpowers@e4f5a6b#skills/*' ./.claude/skills/
+vlurp 'pkg:github/obra/superpowers@e4f5a6b#skills' ./skills/ --preset skills --glob '!**/drafts/**'
+vlurp obra/superpowers --preset skills -d ./.claude/skills --ref e4f5a6b
 vlurp 'pkg:github/whilp/dotfiles@6fc9349#.claude/skills/duckdb-json' ./skills/
 ```
 
 Rules:
 
 - Lines starting with `#` and blank lines are ignored.
-- Each command has `SOURCE... DEST` operands followed by options.
+- PURL copy entries have `SOURCE... DEST` operands followed by repeatable `--glob` and `--iglob` patterns or `--preset`.
+- Repository entries may use named presets, filters, and their existing output options.
 - Both single and double quotes are supported.
 - Patterned PURLs should be quoted for parity with commands pasted into a shell.
 - `--force`, `--quiet`, and `--dry-run` are valid invocation flags.
-- Legacy v2 entries remain parseable during migration.
+- Presets work in both PURL copy and repository shorthand entries.
 
 ## Batch processing
 

@@ -351,7 +351,10 @@ async function fetchSourceEntries(srcEntries, upstreamSha, resolvedRefs, setCurr
         await copySources({
           sources,
           destination: entry.destination,
-          force: true
+          force: true,
+          globs: entry.globs,
+          iglobs: entry.iglobs,
+          preset: entry.preset
         });
       } catch {
         fetchedAll = false;
