@@ -9,7 +9,7 @@ import { pipeline } from 'node:stream/promises';
 import { glob } from 'glob';
 import hostedGitInfo from 'hosted-git-info';
 import { extract } from 'tar';
-import { request } from 'undici';
+import { getGlobalDispatcher, interceptors, request } from 'undici';
 
 // --- Parsing ---
 
@@ -124,7 +124,7 @@ export class Fetcher {
       headers: {
         'User-Agent': 'vlurp-cli'
       },
-      maxRedirections: 5
+      dispatcher: getGlobalDispatcher().compose(interceptors.redirect({ maxRedirections: 5 }))
     });
 
     if (statusCode !== 200) {
