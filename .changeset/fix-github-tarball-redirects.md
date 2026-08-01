@@ -2,4 +2,4 @@
 'vlurp': patch
 ---
 
-Fix GitHub tarball downloads by configuring Undici's redirect interceptor.
+Fix GitHub tarball downloads by following redirects with a bounded request loop.
