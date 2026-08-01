@@ -185,6 +185,59 @@ describe('lineage', () => {
       const records = await readLineage(join(fixturesDir, 'nonexistent.jsonl'));
       assert.deepEqual(records, []);
     });
+
+    it('replaces cp-style lineage when only the embedded ref changes', async () => {
+      const jsonlPath = join(fixturesDir, '.vlurp.jsonl');
+      const base = {
+        schema: 2,
+        lineage_key: 'github:user/repo#skills/a',
+        destination: '.',
+        files_root_relative: true,
+        files: {}
+      };
+      await appendLineage(jsonlPath, {
+        ...base,
+        source: 'pkg:github/user/repo@old#skills/a',
+        ref: 'old'
+      });
+      await appendLineage(jsonlPath, {
+        ...base,
+        source: 'pkg:github/user/repo@new#skills/a',
+        ref: 'new'
+      });
+
+      const records = await readLineage(jsonlPath);
+      assert.equal(records.length, 1);
+      assert.equal(records[0].ref, 'new');
+    });
+
+    it('gives the latest cp-style source ownership of overwritten files', async () => {
+      const jsonlPath = join(fixturesDir, '.vlurp.jsonl');
+      await appendLineage(jsonlPath, {
+        schema: 2,
+        lineage_key: 'github:user/first#docs',
+        source: 'pkg:github/user/first#docs',
+        destination: '.',
+        files_root_relative: true,
+        files: {
+          'shared.md': { sha256: 'old', size: 1 },
+          'first-only.md': { sha256: 'first', size: 1 }
+        }
+      });
+      await appendLineage(jsonlPath, {
+        schema: 2,
+        lineage_key: 'github:user/second#docs',
+        source: 'pkg:github/user/second#docs',
+        destination: '.',
+        files_root_relative: true,
+        files: { 'shared.md': { sha256: 'new', size: 1 } }
+      });
+
+      const records = await readLineage(jsonlPath);
+      assert.equal(records.length, 2);
+      assert.deepEqual(Object.keys(records[0].files), ['first-only.md']);
+      assert.deepEqual(Object.keys(records[1].files), ['shared.md']);
+    });
   });
 
   describe('verifyFiles', () => {
