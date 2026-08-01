@@ -9,6 +9,8 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
+    "test:e2e": "node --test --test-concurrency=1 test/e2e/**/*.test.js",
+    "test:e2e:ci": "node --test --test-concurrency=1 test/e2e/ci/*.test.js",
     "lint": "biome check",
     "lint:fix": "biome check --fix",
     "changeset": "changeset"
@@ -50,6 +52,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
-    "@changesets/cli": "^2.29.5"
+    "@changesets/cli": "^2.29.5",
+    "node-pty": "^1.1.0"
   }
 }

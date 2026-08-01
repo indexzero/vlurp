@@ -45,6 +45,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.29.5
         version: 2.29.5
+      node-pty:
+        specifier: ^1.1.0
+        version: 1.1.0
 
 packages:
 
@@ -532,6 +535,12 @@ packages:
   mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
     engines: {node: '>=4'}
+
+  node-addon-api@7.1.1:
+    resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
+
+  node-pty@1.1.0:
+    resolution: {integrity: sha512-20JqtutY6JPXTUnL0ij1uad7Qe1baT46lyolh2sSENDd4sTzKZ4nmAFkeAARDKwmlLjPx6XKRlwRUxwjOy+lUg==}
 
   onetime@5.1.2:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
@@ -1317,6 +1326,12 @@ snapshots:
   mkdirp@3.0.1: {}
 
   mri@1.2.0: {}
+
+  node-addon-api@7.1.1: {}
+
+  node-pty@1.1.0:
+    dependencies:
+      node-addon-api: 7.1.1
 
   onetime@5.1.2:
     dependencies:

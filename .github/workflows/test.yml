@@ -59,3 +59,27 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run merge-blocking end-to-end tests
+        run: pnpm test:e2e:ci
