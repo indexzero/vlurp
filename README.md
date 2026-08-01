@@ -17,12 +17,31 @@ npm install -g vlurp
 or run directly:
 
 ```sh
-npx vlurp 'pkg:github/<owner>/<repo>#<subpath>' <destination>
+npx vlurp mattpocock/skills --preset skills
 ```
 
 ## Quick start
 
-Copy matching directories from a GitHub repository:
+The easy case is repository shorthand. Fetch the useful skill files from a repository with a maintained preset:
+
+```sh
+vlurp mattpocock/skills --preset skills
+```
+
+This writes the selected repository content beneath `./mattpocock/skills`. Pin it to a commit when you want a reproducible fetch:
+
+```sh
+vlurp mattpocock/skills --preset skills --ref 2ab9580
+```
+
+Use `-d` to choose an output root, `--as` to give the fetched directory a specific name, or `--filter` for repository-relative patterns:
+
+```sh
+vlurp mattpocock/skills -d ./vendor --preset skills
+vlurp mattpocock/skills -d ./skills --as writing --filter 'skills/in-progress/writing-*'
+```
+
+When you need exact remote sources and `cp` placement, use PURL operands. This copies matching directories directly into `./skills/`:
 
 ```
 $ vlurp 'pkg:github/mattpocock/skills#skills/in-progress/writing-*' ./skills/
@@ -32,7 +51,7 @@ $ vlurp 'pkg:github/mattpocock/skills#skills/in-progress/writing-*' ./skills/
   ./skills/writing-shape/
 ```
 
-Pin the same copy to a commit:
+Embed the ref in the PURL to pin the same copy:
 
 ```
 $ vlurp 'pkg:github/mattpocock/skills@2ab9580#skills/in-progress/writing-*' ./skills/
@@ -51,12 +70,12 @@ vlurp \
 
 ## Presets
 
-Presets remain a first-class way to fetch common repository structures without spelling out globs. They work with both the cp-style interface and repository shorthand:
+Presets are a first-class way to fetch common repository structures without spelling out globs. They work with both repository shorthand and the cp-style interface:
 
 ```sh
-vlurp 'pkg:github/obra/superpowers' ./.claude/skills --preset skills
 vlurp obra/superpowers --preset skills -d ./.claude/skills --ref e4f5a6b
 vlurp eyaltoledano/claude-task-master --preset claude -d ./config
+vlurp 'pkg:github/obra/superpowers' ./.claude/skills --preset skills
 ```
 
 | Preset | Selects |
@@ -150,9 +169,10 @@ $ vlurp batch .vlurpfile
 ## Commands
 
 ```
-vlurp SOURCE... DEST                 Copy PURL sources into local files
-vlurp SOURCE... DEST --preset NAME   Copy using a named selection preset
-vlurp REPOSITORY --preset NAME       Repository shorthand remains supported
+vlurp REPOSITORY [options]           Fetch a repository using shorthand
+vlurp REPOSITORY --preset NAME       Fetch using a named selection preset
+vlurp SOURCE... DEST                 Copy precise PURL sources into local files
+vlurp SOURCE... DEST --preset NAME   Copy PURL sources using a preset
 vlurp batch <vlurpfile>              Process a .vlurpfile (batch fetch)
 vlurp verify <path>                  Check file integrity against lineage
 vlurp pin [source]                   Pin sources to current upstream HEAD
@@ -187,7 +207,7 @@ PURL operands determine remote sources and local placement. `--preset`, `--glob`
 
 | Guide | Covers |
 |-------|--------|
-| **[Copying Remote Files](doc/fetch.md)** | PURL sources, presets, selectors, refs, and cp semantics |
+| **[Fetching and Copying](doc/fetch.md)** | Repository shorthand, presets, PURL sources, refs, and cp semantics |
 | **[The .vlurpfile](doc/vlurpfile.md)** | Batch processing, manifest format, intent vs reality |
 | **[Supply Chain Security](doc/supply-chain.md)** | Lineage, verify, pin, scan, threat model |
 | **[Upgrades & Change Detection](doc/upgrade.md)** | outdated, diff, upgrade, catalog, catalog-diff |

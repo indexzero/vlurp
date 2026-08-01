@@ -31,7 +31,7 @@ const DEFAULT_FILTERS = [
 
 const j = jack({
   usage:
-    'vlurp SOURCE... DEST [options]\n       vlurp REPOSITORY --preset NAME [options]\n       vlurp COMMAND [arguments] [options]'
+    'vlurp REPOSITORY [options]\n       vlurp SOURCE... DEST [options]\n       vlurp COMMAND [arguments] [options]'
 })
   .description('A fun CLI tool to quickly fetch GitHub repositories and gists')
   .opt({
@@ -100,8 +100,8 @@ if (values.help) {
   console.log(`vlurp - A fun CLI tool to quickly fetch GitHub repositories and gists
 
 Commands:
-  vlurp <source>... <dest> Copy remote PURL sources with cp semantics
-  vlurp <repo> --preset <name> Fetch using a named preset
+  vlurp <repo> [options]  Fetch a repository using shorthand
+  vlurp <source>... <dest> Copy precise PURL sources with cp semantics
   vlurp batch <file>      Process a .vlurpfile
   vlurp upgrade [source]  Upgrade outdated sources to upstream HEAD
   vlurp verify <path>     Verify file integrity against lineage records
@@ -113,6 +113,9 @@ Commands:
   vlurp catalog-diff      Compare two catalog snapshots
 
 Usage:
+  vlurp <owner>/<repository>                    Fetch useful text files
+  vlurp <owner>/<repository> --preset <name>    Fetch using a named preset
+  vlurp <owner>/<repository> --filter '<glob>'  Fetch repository-relative matches
   vlurp 'pkg:github/<owner>/<repo>#<path>' DEST Copy an exact remote path
   vlurp 'pkg:github/<owner>/<repo>#<glob>' DEST Select remote paths, then copy basenames
   vlurp 'pkg:github/<owner>/<repo>@<ref>#<path>' DEST Pin source in the PURL
@@ -139,14 +142,15 @@ ${Object.entries(PRESETS)
   .join('\n')}
 
 Examples:
-  vlurp 'pkg:github/mattpocock/skills#skills/in-progress/writing-*' ./skills/
-  vlurp 'pkg:github/anthropics/skills@main#skills/pdf' ./skills/
-  vlurp 'pkg:github/mattpocock/skills#skills' ./skills/ --preset skills
-  vlurp 'pkg:github/user/repo#docs' ./docs/ --glob '**/*.md' --glob '!README.md'
+  vlurp mattpocock/skills --preset skills  Fetch using a maintained preset
   vlurp user/repo --ref abc1234           Fetch pinned to commit
   vlurp user/repo --as myskill -d ./sk    Fetch to ./sk/myskill
   vlurp user/repo --preset claude         Use claude preset filters
   vlurp user/repo --auto                  Auto-detect structure
+  vlurp 'pkg:github/mattpocock/skills#skills/in-progress/writing-*' ./skills/
+  vlurp 'pkg:github/anthropics/skills@main#skills/pdf' ./skills/
+  vlurp 'pkg:github/mattpocock/skills#skills' ./skills/ --preset skills
+  vlurp 'pkg:github/user/repo#docs' ./docs/ --glob '**/*.md' --glob '!README.md'
   vlurp batch .vlurpfile                  Process batch file
   vlurp batch .vlurpfile --dry-run        Preview batch operations
   vlurp upgrade                           Upgrade all outdated
