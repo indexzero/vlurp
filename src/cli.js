@@ -5,6 +5,7 @@ import React from 'react';
 import { BatchCommand } from './commands/batch.js';
 import { CatalogCommand } from './commands/catalog.js';
 import { CatalogDiffCommand } from './commands/catalog-diff.js';
+import { CopyCommand } from './commands/copy.js';
 import { DiffCommand } from './commands/diff.js';
 import { FetchCommand } from './commands/fetch.js';
 import { OutdatedCommand } from './commands/outdated.js';
@@ -14,8 +15,22 @@ import { UpgradeCommand } from './commands/upgrade.js';
 import { VerifyCommand } from './commands/verify.js';
 import { PRESETS } from './presets.js';
 
+const DEFAULT_FILTERS = [
+  '.claude/**',
+  'CLAUDE.md',
+  '*.md',
+  '**/*.md',
+  '!README.md',
+  '!CONTRIBUTING.md',
+  '!LICENSE.md',
+  '!CHANGELOG.md',
+  '!CODE_OF_CONDUCT.md',
+  'agents/**',
+  'commands/**'
+];
+
 const j = jack({
-  usage: 'vlurp [command] [source] [options]'
+  usage: 'vlurp SOURCE... DEST [options]\n       vlurp COMMAND [arguments] [options]'
 })
   .description('A fun CLI tool to quickly fetch GitHub repositories and gists')
   .opt({
@@ -43,20 +58,7 @@ const j = jack({
   })
   .optList({
     filter: {
-      description: 'Glob patterns to filter files (see defaults in help)',
-      default: [
-        '.claude/**',
-        'CLAUDE.md',
-        '*.md',
-        '**/*.md',
-        '!README.md',
-        '!CONTRIBUTING.md',
-        '!LICENSE.md',
-        '!CHANGELOG.md',
-        '!CODE_OF_CONDUCT.md',
-        'agents/**',
-        'commands/**'
-      ]
+      description: 'Glob patterns to filter files (legacy fetch syntax)'
     }
   })
   .flag({
@@ -91,7 +93,7 @@ if (values.help) {
   console.log(`vlurp - A fun CLI tool to quickly fetch GitHub repositories and gists
 
 Commands:
-  vlurp <source>          Fetch a single repository
+  vlurp <source>... <dest> Copy remote PURL sources with cp semantics
   vlurp batch <file>      Process a .vlurpfile
   vlurp upgrade [source]  Upgrade outdated sources to upstream HEAD
   vlurp verify <path>     Verify file integrity against lineage records
@@ -103,6 +105,12 @@ Commands:
   vlurp catalog-diff      Compare two catalog snapshots
 
 Usage:
+  vlurp 'pkg:github/<owner>/<repo>#<path>' DEST Copy an exact remote path
+  vlurp 'pkg:github/<owner>/<repo>#<glob>' DEST Copy matching basenames
+  vlurp 'pkg:github/<owner>/<repo>@<ref>#<path>' DEST Pin source in the PURL
+  vlurp SOURCE SOURCE... DEST                   Copy multiple remote sources
+
+Legacy fetch syntax (supported for migration):
   vlurp <user>/<repo>                           Fetch to ./<user>/<repo>
   vlurp <user>/<repo> --ref <sha>               Fetch pinned to commit
   vlurp <user>/<repo> --as <name> -d ./skills   Fetch to ./skills/<name>
@@ -121,6 +129,8 @@ ${Object.entries(PRESETS)
   .join('\n')}
 
 Examples:
+  vlurp 'pkg:github/mattpocock/skills#skills/in-progress/writing-*' ./skills/
+  vlurp 'pkg:github/anthropics/skills@main#skills/pdf' ./skills/
   vlurp user/repo --ref abc1234           Fetch pinned to commit
   vlurp user/repo --as myskill -d ./sk    Fetch to ./sk/myskill
   vlurp user/repo --preset claude         Use claude preset filters
@@ -142,6 +152,7 @@ Examples:
 
 .vlurpfile Format:
   # Comments start with #
+  vlurp 'pkg:github/user/repo@abc1234#skills/*' ./skills/
   vlurp user/repo -d ./vlurp --ref abc1234
   vlurp user/repo -d ./vlurp --filter "claude/**" --as myname
   vlurp user/repo --preset skills
@@ -262,11 +273,47 @@ switch (command) {
   }
 
   default: {
-    // Regular fetch command
+    if (command.startsWith('pkg:')) {
+      if (positionals.length < 2) {
+        console.error('Error: cp-style invocation requires SOURCE and DEST operands');
+        console.error("Usage: vlurp 'pkg:github/<owner>/<repo>#<subpath>' <dest>");
+        process.exit(1);
+      }
+
+      const legacyOptions = [
+        rootDir && '-d',
+        values.filter?.length > 0 && '--filter',
+        ref && '--ref',
+        asName && '--as',
+        preset && '--preset',
+        auto && '--auto'
+      ].filter(Boolean);
+      if (legacyOptions.length > 0) {
+        console.error(
+          `Error: ${legacyOptions.join(', ')} cannot be used with PURL sources; put the ref and selection in the source operand`
+        );
+        process.exit(1);
+      }
+
+      const sources = positionals.slice(0, -1);
+      const destination = positionals.at(-1);
+      render(
+        React.createElement(CopyCommand, {
+          sources,
+          destination,
+          force,
+          dryRun,
+          quiet
+        })
+      );
+      break;
+    }
+
+    // Legacy regular fetch command
     const source = command;
 
     // Resolve filters from preset or explicit filters
-    let filters = values.filter;
+    let filters = values.filter?.length > 0 ? values.filter : DEFAULT_FILTERS;
     if (preset && PRESETS[preset]) {
       filters = PRESETS[preset].filters;
     }

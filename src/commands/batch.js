@@ -4,6 +4,7 @@ import process from 'node:process';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import React, { useEffect, useState } from 'react';
+import { copySources } from '../copy-sources.js';
 import { appendLineage, createLineageRecord, hashDirectory } from '../lineage.js';
 import { fetchRepository, parseSource } from '../remote.js';
 import { parseVlurpfile } from '../vlurpfile.js';
@@ -30,6 +31,15 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet: _quiet }) {
           setStatus('dry-run');
           const dryResults = parsed.map(entry => {
             try {
+              if (entry.mode === 'copy') {
+                return {
+                  ...entry,
+                  status: 'would-fetch',
+                  targetPath: resolve(entry.destination),
+                  message: `Would copy ${entry.sources.length} source(s) to ${entry.destination}`
+                };
+              }
+
               const parsedSource = parseSource(entry.source, { ref: entry.ref });
               const targetPath =
                 entry.targetPath ||
@@ -60,6 +70,22 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet: _quiet }) {
           setCurrentIndex(i);
 
           try {
+            if (entry.mode === 'copy') {
+              const copyResult = await copySources({
+                sources: entry.sources,
+                destination: entry.destination,
+                force: force || entry.force
+              });
+              batchResults.push({
+                ...entry,
+                status: copyResult.status === 'complete' ? 'success' : copyResult.status,
+                targetPath: resolve(entry.destination),
+                message: `${entry.sources.length} source(s) -> ${entry.destination}`
+              });
+              setResults([...batchResults]);
+              continue;
+            }
+
             const parsedSource = parseSource(entry.source, { ref: entry.ref });
             const targetPath =
               entry.targetPath ||
