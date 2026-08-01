@@ -1,5 +1,11 @@
 # vlurp
 
+## 2.0.1
+
+### Patch Changes
+
+- 9756534: Fix GitHub tarball downloads by following redirects with a bounded request loop.
+
 ## 2.0.0
 
 ### Major Changes
