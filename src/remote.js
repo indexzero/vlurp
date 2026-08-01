@@ -9,7 +9,7 @@ import { pipeline } from 'node:stream/promises';
 import { glob } from 'glob';
 import hostedGitInfo from 'hosted-git-info';
 import { extract } from 'tar';
-import { getGlobalDispatcher, interceptors, request } from 'undici';
+import { request } from 'undici';
 
 // --- Parsing ---
 
@@ -120,14 +120,33 @@ export class Fetcher {
   async #downloadTarball(url) {
     const temporaryFile = join(tmpdir(), `vlurp-${randomBytes(8).toString('hex')}.tar.gz`);
 
-    const { statusCode, body } = await request(url, {
-      headers: {
-        'User-Agent': 'vlurp-cli'
-      },
-      dispatcher: getGlobalDispatcher().compose(interceptors.redirect({ maxRedirections: 5 }))
-    });
+    let currentUrl = url;
+    let response;
+
+    for (let redirects = 0; redirects <= 5; redirects++) {
+      response = await request(currentUrl, {
+        headers: {
+          'User-Agent': 'vlurp-cli'
+        }
+      });
+
+      const location = response.headers.location;
+      const isRedirect = [301, 302, 303, 307, 308].includes(response.statusCode) && location;
+      if (!isRedirect) break;
+
+      await response.body.dump();
+
+      if (redirects === 5) {
+        throw new Error('Failed to download tarball: too many redirects');
+      }
+
+      currentUrl = new URL(location, currentUrl);
+    }
+
+    const { statusCode, body } = response;
 
     if (statusCode !== 200) {
+      await body.dump();
       throw new Error(`Failed to download tarball: HTTP ${statusCode}`);
     }
 
