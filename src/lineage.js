@@ -54,6 +54,25 @@ export function createLineageRecord({ source, ref, refType, filters, preset, asN
 }
 
 /**
+ * Create a version 2 lineage record for cp-style source operands. File keys
+ * are relative to the directory containing .vlurp.jsonl, so verification no
+ * longer has to infer layout from a repository name or legacy --as flag.
+ */
+export function createCopyLineageRecord({ source, sourceKey, ref, destination, files }) {
+  return {
+    schema: 2,
+    source,
+    lineage_key: sourceKey,
+    ref: ref || null,
+    ref_type: ref ? 'git' : null,
+    fetched_at: new Date().toISOString(),
+    destination,
+    files_root_relative: true,
+    files
+  };
+}
+
+/**
  * Append a lineage record to a .vlurp.jsonl file.
  */
 export async function appendLineage(jsonlPath, record) {
@@ -64,15 +83,32 @@ export async function appendLineage(jsonlPath, record) {
     // File doesn't exist yet
   }
 
-  // Replace existing record for the same source+as combo, or append
+  // Replace the same source/destination record, then transfer ownership of
+  // any overwritten root-relative paths to the newest record.
   const lines = existing.split('\n').filter(l => l.trim());
   const key = recordKey(record);
-  const filtered = lines.filter(l => {
+  const claimedFiles = new Set(record.files_root_relative ? Object.keys(record.files || {}) : []);
+  const filtered = lines.flatMap(line => {
     try {
-      const parsed = JSON.parse(l);
-      return recordKey(parsed) !== key;
+      const parsed = JSON.parse(line);
+      if (recordKey(parsed) === key) {
+        return [];
+      }
+
+      if (record.files_root_relative && parsed.files_root_relative) {
+        const remainingFiles = Object.fromEntries(
+          Object.entries(parsed.files || {}).filter(([file]) => !claimedFiles.has(file))
+        );
+        if (Object.keys(remainingFiles).length === 0) {
+          return [];
+        }
+
+        return [JSON.stringify({ ...parsed, files: remainingFiles })];
+      }
+
+      return [line];
     } catch {
-      return true;
+      return [line];
     }
   });
 
@@ -118,7 +154,9 @@ export async function verifyFiles(basePath, records) {
     // If --as was used, files are under {as}/
     // Otherwise, files are under {user}/{repo}/ derived from source
     let prefix = '';
-    if (record.as) {
+    if (record.files_root_relative) {
+      prefix = '';
+    } else if (record.as) {
       prefix = record.as;
     } else {
       // Source is "github:user/repo" — extract "user/repo"
@@ -192,8 +230,8 @@ export async function verifyFiles(basePath, records) {
 }
 
 /**
- * Unique key for a lineage record (source + as name).
+ * Unique key for a lineage record and its destination layout.
  */
 function recordKey(record) {
-  return `${record.source}::${record.as || ''}`;
+  return `${record.lineage_key || record.source}::${record.destination || record.as || ''}`;
 }

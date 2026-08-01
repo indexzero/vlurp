@@ -18,7 +18,7 @@ export async function buildCatalog(resolvedPath) {
 
   for (const record of records) {
     const sourceId = record.source.replace(/^github:/, '');
-    const prefix = record.as || sourceId;
+    const prefix = record.files_root_relative ? '' : record.as || sourceId;
 
     for (const filePath of Object.keys(record.files || {})) {
       if (basename(filePath) !== 'SKILL.md') {
@@ -42,10 +42,10 @@ export async function buildCatalog(resolvedPath) {
 }
 
 async function buildSkillEntry(resolvedPath, record, prefix, { filePath, scanSummary }) {
-  const skillDir =
-    filePath === 'SKILL.md' ? prefix : join(prefix, filePath.replace(/\/SKILL\.md$/, ''));
+  const relativeSkillPath = prefix ? join(prefix, filePath) : filePath;
+  const skillDir = relativeSkillPath.replace(/\/?SKILL\.md$/, '');
   const skillName = basename(skillDir);
-  const fullSkillPath = join(resolvedPath, prefix, filePath);
+  const fullSkillPath = join(resolvedPath, relativeSkillPath);
 
   let description = '';
   let frontmatter = null;
@@ -62,7 +62,7 @@ async function buildSkillEntry(resolvedPath, record, prefix, { filePath, scanSum
     .filter(f => f !== filePath && f.startsWith(filePath.replace(/SKILL\.md$/, '')))
     .map(f => basename(f));
 
-  const scanKey = join(prefix, filePath);
+  const scanKey = relativeSkillPath;
   const fileScan = scanSummary.details[scanKey] || {};
 
   return {
@@ -70,7 +70,7 @@ async function buildSkillEntry(resolvedPath, record, prefix, { filePath, scanSum
     data: {
       source: record.source,
       ref: record.ref,
-      path: join(prefix, filePath),
+      path: relativeSkillPath,
       name: frontmatter?.name || skillName,
       version: frontmatter?.version || null,
       description,

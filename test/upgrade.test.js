@@ -206,6 +206,40 @@ Use Bash tool to run commands.
     assert.ok(catalog.generated_at);
   });
 
+  it('should build catalog from cp-style root-relative lineage', async () => {
+    const skillDir = join(tempDir, 'writing-a');
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(
+      join(skillDir, 'SKILL.md'),
+      `---
+name: writing-a
+version: 2.0.0
+description: Root-relative skill
+---
+
+# Writing A
+`
+    );
+    await writeFile(
+      join(tempDir, '.vlurp.jsonl'),
+      `${JSON.stringify({
+        schema: 2,
+        source: 'pkg:github/user/repo@abc1234#skills/writing-a',
+        ref: 'abc1234',
+        fetched_at: '2026-08-01T00:00:00Z',
+        files_root_relative: true,
+        files: { 'writing-a/SKILL.md': { sha256: 'fake', size: 100 } }
+      })}\n`
+    );
+
+    const catalog = await buildCatalog(tempDir);
+    assert.equal(catalog.skills['writing-a'].path, 'writing-a/SKILL.md');
+    assert.equal(
+      catalog.skills['writing-a'].source,
+      'pkg:github/user/repo@abc1234#skills/writing-a'
+    );
+  });
+
   it('should diff catalogs from pre/post upgrade snapshots', async () => {
     // Simulate pre-upgrade catalog
     const preCatalog = {

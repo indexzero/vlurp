@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { constants, createWriteStream } from 'node:fs';
 import { access, cp, mkdir, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
 import { pipeline } from 'node:stream/promises';
@@ -165,11 +165,7 @@ export class Fetcher {
     await mkdir(temporaryExtractDir, { recursive: true });
 
     // Extract everything first
-    await extract({
-      file: tarballPath,
-      cwd: temporaryExtractDir,
-      strip: 1 // Strip the top-level directory from the tarball
-    });
+    await this.#extractArchive(tarballPath, temporaryExtractDir);
 
     // If no filters provided, copy everything
     if (!filters || filters.length === 0) {
@@ -210,6 +206,51 @@ export class Fetcher {
 
     // Clean up temp directory
     await rm(temporaryExtractDir, { recursive: true, force: true });
+  }
+
+  async #extractArchive(tarballPath, temporaryExtractDir) {
+    await extract({
+      file: tarballPath,
+      cwd: temporaryExtractDir,
+      strip: 1,
+      preservePaths: false,
+      filter: (path, entry) => {
+        const normalized = path.replaceAll('\\', '/');
+        const segments = normalized.split('/');
+        if (isAbsolute(path) || normalized.startsWith('/') || segments.includes('..')) {
+          return false;
+        }
+
+        // Remote links and device nodes can escape or confer filesystem
+        // capabilities. vlurp materializes only plain files and directories.
+        return entry.type === 'File' || entry.type === 'OldFile' || entry.type === 'Directory';
+      }
+    });
+  }
+
+  async materialize(tarballUrl) {
+    const temporaryExtractDir = join(tmpdir(), `vlurp-extract-${randomBytes(8).toString('hex')}`);
+    let temporaryTarball;
+    await mkdir(temporaryExtractDir, { recursive: true });
+
+    try {
+      temporaryTarball = await this.#downloadTarball(tarballUrl);
+      await this.#extractArchive(temporaryTarball, temporaryExtractDir);
+      return {
+        path: temporaryExtractDir,
+        cleanup: async () => {
+          await rm(temporaryExtractDir, { recursive: true, force: true });
+        }
+      };
+    } catch (error) {
+      await rm(temporaryExtractDir, { recursive: true, force: true });
+      throw error;
+    } finally {
+      if (temporaryTarball) {
+        const { unlink } = await import('node:fs/promises');
+        await unlink(temporaryTarball, { force: true });
+      }
+    }
   }
 
   async countFiles(dir) {

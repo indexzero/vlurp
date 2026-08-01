@@ -3,9 +3,17 @@ export {
   diffCatalogs,
   formatCatalogDiff
 } from './catalog-diff.js';
+export {
+  createCopyPlan,
+  executeCopyPlan,
+  listCopiedFiles,
+  selectRepositoryEntries
+} from './copy-plan.js';
+export { copySources } from './copy-sources.js';
 export { detectStructure } from './detector.js';
 export {
   appendLineage,
+  createCopyLineageRecord,
   createLineageRecord,
   hashDirectory,
   hashFile,
@@ -26,4 +34,9 @@ export {
   scanFileContent,
   summarizeScan
 } from './scanner.js';
+export {
+  parseSourceOperand,
+  replaceSourceRef,
+  sourceRepositoryKey
+} from './source-operand.js';
 export { parseVlurpfile, updateRef, updateRefs } from './vlurpfile.js';
