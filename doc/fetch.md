@@ -1,12 +1,40 @@
-# Copying Remote Files
+# Fetching and Copying from GitHub
 
-vlurp treats a GitHub repository as a remote filesystem and uses the familiar command shape:
+The easy case is repository shorthand:
+
+```sh
+vlurp mattpocock/skills
+vlurp mattpocock/skills --preset skills
+```
+
+Repository shorthand accepts GitHub URLs too. It writes beneath `./<owner>/<repository>` by default and preserves repository-relative paths.
+
+```sh
+# Choose a maintained selection policy
+vlurp mattpocock/skills --preset skills
+
+# Pin the fetch and choose its output root
+vlurp mattpocock/skills --preset skills --ref 2ab9580 -d ./vendor
+
+# Name the destination and provide repository-relative patterns
+vlurp mattpocock/skills -d ./skills --as writing \
+  --filter 'skills/in-progress/writing-*'
+
+# Let vlurp detect a suitable repository structure
+vlurp owner/repository --auto
+```
+
+Use `--preset` for a named, maintained selection policy; `--filter` for one or more explicit repository-relative patterns; `--ref` to pin a commit, tag, or branch; `-d` to choose an output root; and `--as` to name the fetched directory.
+
+## Precise copy operands
+
+When you need exact remote source paths and `cp` destination placement, treat the GitHub repository as a remote filesystem:
 
 ```sh
 vlurp SOURCE... DEST
 ```
 
-The sources are Package URLs (PURLs). The destination is a local file or directory.
+The sources are Package URLs (PURLs). The destination is a local file or directory. This form complements repository shorthand; it does not replace it.
 
 ## Source grammar
 
@@ -78,13 +106,13 @@ Presets are maintained, named collections of these transfer rules for common rep
 | `minimal` | Only `.claude/**` and `CLAUDE.md` |
 
 ```sh
-vlurp 'pkg:github/obra/superpowers' ./.claude/skills --preset skills
-vlurp 'pkg:github/obra/superpowers#skills' ./skills --preset skills --glob '!**/drafts/**'
 vlurp obra/superpowers --preset skills -d ./.claude/skills --ref e4f5a6b
 vlurp eyaltoledano/claude-task-master --preset claude -d ./config
+vlurp 'pkg:github/obra/superpowers' ./.claude/skills --preset skills
+vlurp 'pkg:github/obra/superpowers#skills' ./skills --preset skills --glob '!**/drafts/**'
 ```
 
-The first two commands use cp placement. The latter two use the existing repository shorthand, which preserves repository-relative layout; `--ref`, `-d`, `--as`, and `--auto` remain supported there. Presets are first-class in both forms.
+The first two commands use repository shorthand, which preserves repository-relative layout; `--ref`, `-d`, `--as`, and `--auto` are supported there. The latter two use cp placement. Presets are first-class in both forms.
 
 ## Copy semantics
 
@@ -126,13 +154,3 @@ vlurp 'pkg:github/user/repo#skills/*' ./skills/ --force
 ## Lineage
 
 Every completed copy writes `.vlurp.jsonl` beside the copied set. Its file keys are relative to the lineage file, so `vlurp verify <directory>` can check the exact destination layout without reconstructing it from the repository name.
-
-## Repository shorthand
-
-Repository-wide filters remain available alongside named presets:
-
-```sh
-vlurp user/repo -d ./skills --filter 'skills/*' --ref abc1234
-```
-
-The PURL form carries repository identity, ref, and source selection in one value, eliminating path gymnastics when you already know the desired remote paths. `--filter` remains the pattern option for repository shorthand; `--glob` and `--iglob` are the corresponding cp-style transfer options.

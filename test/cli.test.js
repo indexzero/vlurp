@@ -21,6 +21,10 @@ describe('CLI', () => {
       output.includes('--iglob'),
       'Help should document case-insensitive transfer patterns'
     );
+    assert.ok(
+      output.indexOf('vlurp <owner>/<repository>') < output.indexOf("vlurp 'pkg:github/"),
+      'Help should present repository shorthand before precise PURL copies'
+    );
   });
 
   it('should show usage when called without arguments', () => {
