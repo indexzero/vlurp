@@ -57,6 +57,102 @@ describe('cp-style copy planning', () => {
     assert.equal(await readFile(join(destination, 'writing-b', 'SKILL.md'), 'utf8'), 'b');
   });
 
+  it('filters a cp source with case-sensitive glob rules', async () => {
+    const destination = join(temporaryDirectory, 'destination');
+    await mkdir(destination);
+    const selections = await selectRepositoryEntries(repository, {
+      repo: 'repo',
+      subpath: '',
+      pattern: false,
+      raw: 'pkg:github/user/repo'
+    });
+    const plan = await createCopyPlan(selections, destination, {
+      globs: ['**/*.md', '!README.md']
+    });
+
+    await executeCopyPlan(plan);
+    assert.equal(
+      await readFile(join(destination, 'repo', 'skills', 'writing-a', 'SKILL.md'), 'utf8'),
+      'a'
+    );
+    await assert.rejects(readFile(join(destination, 'repo', 'README.md')), /ENOENT/);
+  });
+
+  it('filters a cp source with case-insensitive iglob rules', async () => {
+    const destination = join(temporaryDirectory, 'destination');
+    await mkdir(destination);
+    const selections = await selectRepositoryEntries(repository, {
+      repo: 'repo',
+      subpath: 'skills/writing-a',
+      pattern: false,
+      raw: 'pkg:github/user/repo#skills/writing-a'
+    });
+    const plan = await createCopyPlan(selections, destination, {
+      iglobs: ['**/skill.md']
+    });
+
+    await executeCopyPlan(plan);
+    assert.equal(await readFile(join(destination, 'writing-a', 'SKILL.md'), 'utf8'), 'a');
+  });
+
+  it('omits selected directories with no matching transfer files', async () => {
+    const destination = join(temporaryDirectory, 'destination');
+    await mkdir(destination);
+    await writeFile(join(repository, 'skills', 'writing-a', 'ONLY.txt'), 'selected');
+    const selections = await selectRepositoryEntries(repository, {
+      repo: 'repo',
+      subpath: 'skills/writing-*',
+      pattern: true,
+      raw: 'pkg:github/user/repo#skills/writing-*'
+    });
+    const plan = await createCopyPlan(selections, destination, { globs: ['ONLY.txt'] });
+
+    assert.deepEqual(
+      plan.entries.map(entry => entry.basename),
+      ['writing-a']
+    );
+    await executeCopyPlan(plan);
+    assert.equal(await readFile(join(destination, 'writing-a', 'ONLY.txt'), 'utf8'), 'selected');
+    await assert.rejects(readFile(join(destination, 'writing-b', 'SKILL.md')), /ENOENT/);
+  });
+
+  it('allows transfer rules to exclude repository lineage metadata', async () => {
+    const destination = join(temporaryDirectory, 'destination');
+    await writeFile(join(repository, '.vlurp.jsonl'), 'remote metadata');
+    const selections = await selectRepositoryEntries(repository, {
+      repo: 'repo',
+      subpath: '',
+      pattern: false,
+      raw: 'pkg:github/user/repo'
+    });
+    const plan = await createCopyPlan(selections, destination, { globs: ['**/*.md'] });
+
+    await executeCopyPlan(plan);
+    assert.equal(await readFile(join(destination, 'README.md'), 'utf8'), 'readme');
+  });
+
+  it('rejects symbolic links in filtered destination paths before copying', async () => {
+    const destination = join(temporaryDirectory, 'destination');
+    const outside = join(temporaryDirectory, 'outside');
+    const sourceDirectory = join(repository, 'skills', 'writing-a');
+    await mkdir(join(sourceDirectory, 'nested'));
+    await writeFile(join(sourceDirectory, 'nested', 'guide.md'), 'safe');
+    await mkdir(join(destination, 'writing-a'), { recursive: true });
+    await mkdir(outside);
+    await symlink(outside, join(destination, 'writing-a', 'nested'));
+    const selections = await selectRepositoryEntries(repository, {
+      repo: 'repo',
+      subpath: 'skills/writing-a',
+      pattern: false,
+      raw: 'pkg:github/user/repo#skills/writing-a'
+    });
+
+    await assert.rejects(
+      createCopyPlan(selections, destination, { globs: ['**/*.md'] }),
+      /symbolic link/i
+    );
+  });
+
   it('makes a missing destination the copied file itself', async () => {
     const destination = join(temporaryDirectory, 'renamed.md');
     const selections = await selectRepositoryEntries(repository, {

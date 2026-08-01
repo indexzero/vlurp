@@ -14,7 +14,21 @@ describe('PURL copy', () => {
     await mkdir(destination);
     const source =
       'pkg:github/mattpocock/skills@2ab958093e83e0ec752e6c1c5932da465bf23e0c#skills/in-progress/writing-*';
-    const result = await runVlurp([source, destination, '--force', '--quiet'], { cwd: workspace });
+    const result = await runVlurp(
+      [
+        source,
+        destination,
+        '--preset',
+        'skills',
+        '--glob',
+        '!README.md',
+        '--iglob',
+        '**/skill.md',
+        '--force',
+        '--quiet'
+      ],
+      { cwd: workspace }
+    );
 
     assert.equal(
       result.code,
@@ -29,5 +43,8 @@ describe('PURL copy', () => {
       'writing-fragments',
       'writing-shape'
     ]);
+    for (const directory of ['writing-beats', 'writing-fragments', 'writing-shape']) {
+      assert.deepEqual(await readdir(join(destination, directory)), ['SKILL.md']);
+    }
   });
 });

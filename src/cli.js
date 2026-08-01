@@ -30,7 +30,8 @@ const DEFAULT_FILTERS = [
 ];
 
 const j = jack({
-  usage: 'vlurp SOURCE... DEST [options]\n       vlurp COMMAND [arguments] [options]'
+  usage:
+    'vlurp SOURCE... DEST [options]\n       vlurp REPOSITORY --preset NAME [options]\n       vlurp COMMAND [arguments] [options]'
 })
   .description('A fun CLI tool to quickly fetch GitHub repositories and gists')
   .opt({
@@ -58,7 +59,13 @@ const j = jack({
   })
   .optList({
     filter: {
-      description: 'Glob patterns to filter files (legacy fetch syntax)'
+      description: 'Glob patterns to filter files in repository selection mode'
+    },
+    glob: {
+      description: 'Case-sensitive transfer pattern; prefix with ! to exclude'
+    },
+    iglob: {
+      description: 'Case-insensitive transfer pattern; prefix with ! to exclude'
     }
   })
   .flag({
@@ -94,6 +101,7 @@ if (values.help) {
 
 Commands:
   vlurp <source>... <dest> Copy remote PURL sources with cp semantics
+  vlurp <repo> --preset <name> Fetch using a named preset
   vlurp batch <file>      Process a .vlurpfile
   vlurp upgrade [source]  Upgrade outdated sources to upstream HEAD
   vlurp verify <path>     Verify file integrity against lineage records
@@ -106,11 +114,13 @@ Commands:
 
 Usage:
   vlurp 'pkg:github/<owner>/<repo>#<path>' DEST Copy an exact remote path
-  vlurp 'pkg:github/<owner>/<repo>#<glob>' DEST Copy matching basenames
+  vlurp 'pkg:github/<owner>/<repo>#<glob>' DEST Select remote paths, then copy basenames
   vlurp 'pkg:github/<owner>/<repo>@<ref>#<path>' DEST Pin source in the PURL
   vlurp SOURCE SOURCE... DEST                   Copy multiple remote sources
+  vlurp SOURCE DEST --glob '**/*.md'            Copy files matching a pattern
+  vlurp SOURCE DEST --iglob '**/skill.md'       Match a pattern without case
 
-Legacy fetch syntax (supported for migration):
+Repository preset and filter mode:
   vlurp <user>/<repo>                           Fetch to ./<user>/<repo>
   vlurp <user>/<repo> --ref <sha>               Fetch pinned to commit
   vlurp <user>/<repo> --as <name> -d ./skills   Fetch to ./skills/<name>
@@ -131,6 +141,8 @@ ${Object.entries(PRESETS)
 Examples:
   vlurp 'pkg:github/mattpocock/skills#skills/in-progress/writing-*' ./skills/
   vlurp 'pkg:github/anthropics/skills@main#skills/pdf' ./skills/
+  vlurp 'pkg:github/mattpocock/skills#skills' ./skills/ --preset skills
+  vlurp 'pkg:github/user/repo#docs' ./docs/ --glob '**/*.md' --glob '!README.md'
   vlurp user/repo --ref abc1234           Fetch pinned to commit
   vlurp user/repo --as myskill -d ./sk    Fetch to ./sk/myskill
   vlurp user/repo --preset claude         Use claude preset filters
@@ -153,6 +165,7 @@ Examples:
 .vlurpfile Format:
   # Comments start with #
   vlurp 'pkg:github/user/repo@abc1234#skills/*' ./skills/
+  vlurp pkg:github/user/repo ./docs/ --glob '**/*.md' --iglob '!**/draft-*'
   vlurp user/repo -d ./vlurp --ref abc1234
   vlurp user/repo -d ./vlurp --filter "claude/**" --as myname
   vlurp user/repo --preset skills
@@ -173,6 +186,13 @@ const { force, auto, preset, quiet } = values;
 const { ref } = values;
 const asName = values.as;
 const dryRun = values['dry-run'];
+
+if (preset && !PRESETS[preset]) {
+  console.error(
+    `Error: unknown preset "${preset}"; choose one of: ${Object.keys(PRESETS).join(', ')}`
+  );
+  process.exit(1);
+}
 
 // Handle subcommands
 switch (command) {
@@ -280,17 +300,16 @@ switch (command) {
         process.exit(1);
       }
 
-      const legacyOptions = [
+      const repositoryOptions = [
         rootDir && '-d',
         values.filter?.length > 0 && '--filter',
         ref && '--ref',
         asName && '--as',
-        preset && '--preset',
         auto && '--auto'
       ].filter(Boolean);
-      if (legacyOptions.length > 0) {
+      if (repositoryOptions.length > 0) {
         console.error(
-          `Error: ${legacyOptions.join(', ')} cannot be used with PURL sources; put the ref and selection in the source operand`
+          `Error: ${repositoryOptions.join(', ')} cannot be used with PURL sources; put remote selections in PURL operands and use --glob or --iglob for transfer patterns`
         );
         process.exit(1);
       }
@@ -303,14 +322,22 @@ switch (command) {
           destination,
           force,
           dryRun,
-          quiet
+          quiet,
+          globs: values.glob || [],
+          iglobs: values.iglob || [],
+          preset
         })
       );
       break;
     }
 
-    // Legacy regular fetch command
+    // Repository preset and filter mode
     const source = command;
+
+    if (values.glob?.length > 0 || values.iglob?.length > 0) {
+      console.error('Error: --glob and --iglob require cp-style PURL SOURCE... DEST operands');
+      process.exit(1);
+    }
 
     // Resolve filters from preset or explicit filters
     let filters = values.filter?.length > 0 ? values.filter : DEFAULT_FILTERS;

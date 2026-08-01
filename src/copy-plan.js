@@ -1,6 +1,7 @@
 import { cp, lstat, mkdir, readdir } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { glob } from 'glob';
+import { compileTransferRules } from './transfer-rules.js';
 
 export async function selectRepositoryEntries(repositoryRoot, source) {
   const root = resolve(repositoryRoot);
@@ -44,7 +45,7 @@ export async function selectRepositoryEntries(repositoryRoot, source) {
   );
 }
 
-export async function createCopyPlan(selections, destination) {
+export async function createCopyPlan(selections, destination, transferOptions = {}) {
   if (!Array.isArray(selections) || selections.length === 0) {
     throw new Error('At least one source selection is required');
   }
@@ -58,8 +59,15 @@ export async function createCopyPlan(selections, destination) {
 
   const entries = [];
   const targets = new Set();
+  const transferRules = compileTransferRules(transferOptions);
   for (const selection of selections) {
     await validateSelectionTree(selection.sourcePath);
+    const transferFiles = transferRules.active
+      ? await selectTransferFiles(selection, transferRules)
+      : null;
+    if (transferFiles && transferFiles.length === 0) {
+      continue;
+    }
     if (destinationStat && !destinationIsDirectory && selection.kind === 'directory') {
       throw new Error(
         `Cannot overwrite non-directory DEST with directory ${selection.relativePath}`
@@ -97,8 +105,21 @@ export async function createCopyPlan(selections, destination) {
       throw new Error(`Source and destination types differ at ${targetPath}`);
     }
 
+    if (transferFiles && selection.kind === 'directory') {
+      await validateTransferTargets(targetPath, transferFiles);
+    }
+
     targets.add(targetPath);
-    entries.push({ ...selection, targetPath, exists: Boolean(targetStat) });
+    entries.push({
+      ...selection,
+      targetPath,
+      exists: Boolean(targetStat),
+      transferFiles
+    });
+  }
+
+  if (entries.length === 0) {
+    throw new Error('Transfer rules matched no files beneath the selected sources');
   }
 
   const plan = {
@@ -109,7 +130,12 @@ export async function createCopyPlan(selections, destination) {
       destinationIsDirectory || (!destinationStat && selections[0].kind === 'directory')
         ? destinationPath
         : dirname(destinationPath),
-    entries
+    entries,
+    transferRules: {
+      globs: transferRules.globs,
+      iglobs: transferRules.iglobs,
+      preset: transferRules.preset
+    }
   };
   await validateReservedTargets(plan);
   return plan;
@@ -117,6 +143,21 @@ export async function createCopyPlan(selections, destination) {
 
 export async function executeCopyPlan(plan) {
   for (const entry of plan.entries) {
+    if (entry.transferFiles) {
+      if (entry.kind === 'directory') {
+        await mkdir(entry.targetPath, { recursive: true });
+      }
+
+      for (const file of entry.transferFiles) {
+        const sourcePath = file ? resolve(entry.sourcePath, ...file.split('/')) : entry.sourcePath;
+        const targetPath = file ? resolve(entry.targetPath, ...file.split('/')) : entry.targetPath;
+        await mkdir(dirname(targetPath), { recursive: true });
+        await cp(sourcePath, targetPath, { force: true, errorOnExist: false });
+      }
+
+      continue;
+    }
+
     await mkdir(dirname(entry.targetPath), { recursive: true });
     await cp(entry.sourcePath, entry.targetPath, {
       recursive: entry.kind === 'directory',
@@ -129,6 +170,15 @@ export async function executeCopyPlan(plan) {
 export async function listCopiedFiles(plan) {
   const files = [];
   for (const entry of plan.entries) {
+    if (entry.transferFiles) {
+      for (const file of entry.transferFiles) {
+        const targetPath = file ? resolve(entry.targetPath, ...file.split('/')) : entry.targetPath;
+        files.push(relative(plan.lineageRoot, targetPath));
+      }
+
+      continue;
+    }
+
     if (entry.kind === 'file') {
       files.push(relative(plan.lineageRoot, entry.targetPath));
       continue;
@@ -138,6 +188,21 @@ export async function listCopiedFiles(plan) {
   }
 
   return [...new Set(files)].sort();
+}
+
+async function selectTransferFiles(selection, rules) {
+  if (selection.kind === 'file') {
+    return rules.matches(selection.basename) ? [''] : [];
+  }
+
+  const files = [];
+  await walk(selection.sourcePath, path => {
+    const relativePath = normalizeRelative(relative(selection.sourcePath, path));
+    if (rules.matches(relativePath)) {
+      files.push(relativePath);
+    }
+  });
+  return files.sort();
 }
 
 async function selectionFor(sourcePath, selectedBasename, relativePath, source) {
@@ -220,8 +285,36 @@ async function validateReservedTargets(plan) {
         continue;
       }
 
+      if (entry.transferFiles && !entry.transferFiles.includes(normalizeRelative(mappedRelative))) {
+        continue;
+      }
+
       if (await optionalLstat(resolve(entry.sourcePath, mappedRelative))) {
         throw new Error(`Source would overwrite reserved vlurp metadata: ${reservedName}`);
+      }
+    }
+  }
+}
+
+async function validateTransferTargets(targetRoot, transferFiles) {
+  for (const file of transferFiles) {
+    const segments = file.split('/');
+    let path = targetRoot;
+    for (const [index, segment] of segments.entries()) {
+      path = resolve(path, segment);
+      assertContained(targetRoot, path);
+      const stat = await optionalLstat(path);
+      if (!stat) {
+        continue;
+      }
+
+      if (stat.isSymbolicLink()) {
+        throw new Error(`Refusing to copy through symbolic link at DEST: ${path}`);
+      }
+
+      const isFile = index === segments.length - 1;
+      if ((isFile && !stat.isFile()) || (!isFile && !stat.isDirectory())) {
+        throw new Error(`Source and destination types differ at ${path}`);
       }
     }
   }
