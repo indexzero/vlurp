@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import React, { useEffect, useState } from 'react';
-import { readLineage } from '../lineage.js';
+import { expandManifestSources } from '../manifest-sources.js';
 import { Fetcher } from '../remote.js';
 import { parseVlurpfile } from '../vlurpfile.js';
 
@@ -32,40 +32,14 @@ export function OutdatedCommand({ vlurpfilePath }) {
           return;
         }
 
-        // Try to read lineage for additional context
-        const lineageRecords = [];
-        for (const entry of entries) {
-          if (entry.rootDir) {
-            const lineagePath = join(resolve(entry.rootDir), '.vlurp.jsonl');
-            try {
-              const records = await readLineage(lineagePath);
-              lineageRecords.push(...records);
-            } catch {
-              // No lineage file yet
-            }
-          }
-        }
-
         const fetcher = new Fetcher();
         const outdatedResults = [];
 
-        for (const entry of entries) {
-          const parts = entry.source.split('/');
-          if (parts.length < 2) {
-            outdatedResults.push({
-              source: entry.source,
-              status: 'error',
-              message: 'Invalid source format'
-            });
-            continue;
-          }
-
-          const [user, repo] = parts;
-
-          const upstreamSha = await fetcher.resolveHead(user, repo);
+        for (const source of expandManifestSources(entries)) {
+          const upstreamSha = await fetcher.resolveHead(source.user, source.repo);
           if (!upstreamSha) {
             outdatedResults.push({
-              source: entry.source,
+              source: source.raw,
               status: 'error',
               message: 'Could not resolve upstream HEAD'
             });
@@ -74,29 +48,29 @@ export function OutdatedCommand({ vlurpfilePath }) {
 
           const shortUpstream = upstreamSha.slice(0, 7);
 
-          if (!entry.ref) {
+          if (!source.ref) {
             outdatedResults.push({
-              source: entry.source,
+              source: source.raw,
               status: 'unpinned',
               upstream: shortUpstream,
               message: 'Not pinned — always fetches latest'
             });
           } else if (
-            upstreamSha.startsWith(entry.ref) ||
-            entry.ref.startsWith(upstreamSha.slice(0, entry.ref.length))
+            upstreamSha.startsWith(source.ref) ||
+            source.ref.startsWith(upstreamSha.slice(0, source.ref.length))
           ) {
             // Compare short SHAs sensibly
             outdatedResults.push({
-              source: entry.source,
+              source: source.raw,
               status: 'current',
-              pinned: entry.ref,
+              pinned: source.ref,
               upstream: shortUpstream
             });
           } else {
             outdatedResults.push({
-              source: entry.source,
+              source: source.raw,
               status: 'outdated',
-              pinned: entry.ref,
+              pinned: source.ref,
               upstream: shortUpstream
             });
           }

@@ -1,13 +1,17 @@
+import { statSync } from 'node:fs';
 import { readFile, rename, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import process from 'node:process';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import React, { useEffect, useState } from 'react';
 import { buildCatalog } from '../catalog.js';
 import { diffCatalogs, formatCatalogDiff } from '../catalog-diff.js';
+import { copySources } from '../copy-sources.js';
 import { appendLineage, createLineageRecord, hashDirectory } from '../lineage.js';
+import { expandManifestSources, manifestSourceMatches } from '../manifest-sources.js';
 import { Fetcher, fetchRepository, parseSource } from '../remote.js';
+import { replaceSourceRef } from '../source-operand.js';
 import { parseVlurpfile, updateRefs } from '../vlurpfile.js';
 
 export function UpgradeCommand({ vlurpfilePath, source, dryRun }) {
@@ -104,23 +108,25 @@ async function runUpgrade(options) {
     return;
   }
 
-  // Filter to specific source if given
-  const targetEntries = source ? entries.filter(e => e.source === source) : entries;
+  const manifestSources = expandManifestSources(entries);
+  const targetSources = source
+    ? manifestSources.filter(item => manifestSourceMatches(item, source))
+    : manifestSources;
 
-  if (source && targetEntries.length === 0) {
+  if (source && targetSources.length === 0) {
     setError(`Source "${source}" not found in vlurpfile`);
     setStatus('error');
     return;
   }
 
-  // Deduplicate by source
+  // Group selectors from one repository so HEAD is resolved and fetched once.
   const sourceMap = new Map();
-  for (const entry of targetEntries) {
-    if (!sourceMap.has(entry.source)) {
-      sourceMap.set(entry.source, []);
+  for (const item of targetSources) {
+    if (!sourceMap.has(item.repositoryKey)) {
+      sourceMap.set(item.repositoryKey, []);
     }
 
-    sourceMap.get(entry.source).push(entry);
+    sourceMap.get(item.repositoryKey).push(item);
   }
 
   // Step 2: Check upstream
@@ -141,7 +147,7 @@ async function runUpgrade(options) {
     const refUpdates = {};
     for (const r of upgradeResults) {
       if (r.status === 'upgraded') {
-        refUpdates[r.source] = r.newRef;
+        Object.assign(refUpdates, r.refUpdates);
       }
     }
 
@@ -165,20 +171,14 @@ async function runUpgrade(options) {
 async function checkAndUpgradeSources(options) {
   const { sourceMap, fetcher, dryRun, entries, setCurrentSource, setResults, setStatus } = options;
   const upgradeResults = [];
+  const resolvedRefs = new Map();
 
   // Collect rootDirs for catalog snapshot
   const rootDirs = collectRootDirs(entries);
 
-  for (const [src, srcEntries] of sourceMap) {
+  for (const [src, sourceItems] of sourceMap) {
     setCurrentSource(src);
-    const parts = src.split('/');
-    if (parts.length < 2) {
-      upgradeResults.push({ source: src, status: 'error', message: 'Invalid source format' });
-      setResults([...upgradeResults]);
-      continue;
-    }
-
-    const [user, repo] = parts;
+    const { user, repo } = sourceItems[0];
 
     const upstreamSha = await fetcher.resolveHead(user, repo);
     if (!upstreamSha) {
@@ -190,12 +190,17 @@ async function checkAndUpgradeSources(options) {
       setResults([...upgradeResults]);
       continue;
     }
+    resolvedRefs.set(src, upstreamSha);
 
-    const pinnedRef = srcEntries[0].ref;
+    const pinnedRefs = sourceItems.map(item => item.ref).filter(Boolean);
+    const pinnedRef = pinnedRefs.length === 1 ? pinnedRefs[0] : pinnedRefs.join(',');
     const isCurrent =
-      pinnedRef &&
-      (upstreamSha.startsWith(pinnedRef) ||
-        pinnedRef.startsWith(upstreamSha.slice(0, pinnedRef.length)));
+      pinnedRefs.length === sourceItems.length &&
+      pinnedRefs.every(
+        candidate =>
+          upstreamSha.startsWith(candidate) ||
+          candidate.startsWith(upstreamSha.slice(0, candidate.length))
+      );
 
     if (isCurrent) {
       upgradeResults.push({
@@ -214,7 +219,7 @@ async function checkAndUpgradeSources(options) {
         status: 'outdated',
         ref: pinnedRef || null,
         upstream: upstreamSha.slice(0, 7),
-        entries: srcEntries.length
+        entries: sourceItems.length
       });
       setResults([...upgradeResults]);
       continue;
@@ -226,7 +231,18 @@ async function checkAndUpgradeSources(options) {
     // Fetch each entry for this source with the new ref
     setStatus('upgrading');
     const shortSha = upstreamSha.slice(0, 7);
-    const fetchedAll = await fetchSourceEntries(srcEntries, upstreamSha, setCurrentSource);
+    const sourceEntries = [...new Set(sourceItems.map(item => item.entry))];
+    const fetchedAll = await fetchSourceEntries(
+      sourceEntries,
+      upstreamSha,
+      resolvedRefs,
+      setCurrentSource
+    );
+    if (!fetchedAll) {
+      // Do not let a later multi-repository command record this failed
+      // repository at a ref that its manifest will not receive.
+      resolvedRefs.delete(src);
+    }
 
     // Step 4: Snapshot post-upgrade catalog and diff
     const postCatalog = await snapshotCatalogs(rootDirs, setStatus, setCurrentSource);
@@ -241,7 +257,8 @@ async function checkAndUpgradeSources(options) {
       ref: pinnedRef || null,
       upstream: shortSha,
       newRef: shortSha,
-      entries: srcEntries.length,
+      entries: sourceItems.length,
+      refUpdates: Object.fromEntries(sourceItems.map(item => [item.raw, shortSha])),
       message: fetchedAll ? null : 'One or more entries failed to fetch',
       catalogDiff
     });
@@ -254,10 +271,25 @@ async function checkAndUpgradeSources(options) {
 function collectRootDirs(entries) {
   const dirs = new Set();
   for (const entry of entries) {
-    dirs.add(entry.rootDir ? resolve(entry.rootDir) : process.cwd());
+    dirs.add(
+      entry.mode === 'copy'
+        ? copyLineageRoot(entry.destination)
+        : entry.rootDir
+          ? resolve(entry.rootDir)
+          : process.cwd()
+    );
   }
 
   return [...dirs];
+}
+
+function copyLineageRoot(destination) {
+  const path = resolve(destination);
+  try {
+    return statSync(path).isDirectory() ? path : dirname(path);
+  } catch {
+    return dirname(path);
+  }
 }
 
 async function snapshotCatalogs(rootDirs, setStatus, setCurrentSource) {
@@ -304,10 +336,30 @@ async function saveCatalogs(rootDirs, preCatalog, postCatalog) {
   }
 }
 
-async function fetchSourceEntries(srcEntries, upstreamSha, setCurrentSource) {
+async function fetchSourceEntries(srcEntries, upstreamSha, resolvedRefs, setCurrentSource) {
   let fetchedAll = true;
 
   for (const entry of srcEntries) {
+    if (entry.mode === 'copy') {
+      setCurrentSource(entry.sources.join(', '));
+      try {
+        const sources = entry.sources.map(source => {
+          const item = expandManifestSources([{ ...entry, sources: [source] }])[0];
+          const resolvedRef = resolvedRefs.get(item.repositoryKey);
+          return resolvedRef ? replaceSourceRef(source, resolvedRef) : source;
+        });
+        await copySources({
+          sources,
+          destination: entry.destination,
+          force: true
+        });
+      } catch {
+        fetchedAll = false;
+      }
+
+      continue;
+    }
+
     setCurrentSource(`${entry.source}${entry.as ? ` (${entry.as})` : ''}`);
     try {
       const parsed = parseSource(entry.source, { ref: upstreamSha });

@@ -1,28 +1,16 @@
 import { resolve } from 'node:path';
 import { PRESETS } from './presets.js';
+import { parseSourceOperand, replaceSourceRef } from './source-operand.js';
 
-/**
- * Parses a .vlurpfile and returns an array of vlurp commands.
- *
- * Format:
- *   # Comments start with #
- *   vlurp user/repo -d ./vlurp
- *   vlurp user/repo -d ./vlurp --filter "pattern"
- *   vlurp user/repo --preset claude
- */
+/** Parse legacy and cp-style commands from a .vlurpfile. */
 export function parseVlurpfile(content) {
-  const lines = content.split('\n');
   const entries = [];
-
-  for (const line of lines) {
+  for (const line of content.split('\n')) {
     const trimmed = line.trim();
-
-    // Skip empty lines and comments
     if (!trimmed || trimmed.startsWith('#')) {
       continue;
     }
 
-    // Parse the vlurp command
     const entry = parseVlurpLine(trimmed);
     if (entry) {
       entries.push(entry);
@@ -32,109 +20,84 @@ export function parseVlurpfile(content) {
   return entries;
 }
 
-/**
- * Update the --ref value for a specific source in vlurpfile content.
- * Preserves comments, blank lines, and argument ordering.
- * If the entry has no --ref, appends one.
- * Returns the updated content string.
- */
 export function updateRef(content, source, newRef) {
-  const lines = content.split('\n');
-  const result = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    // Preserve comments and blank lines as-is
-    if (!trimmed || trimmed.startsWith('#')) {
-      result.push(line);
-      continue;
-    }
-
-    // Check if this line matches the target source
-    const lineSource = extractSource(trimmed);
-    if (lineSource !== source) {
-      result.push(line);
-      continue;
-    }
-
-    // This line matches -- update or insert --ref
-    result.push(replaceRef(line, newRef));
-  }
-
-  return result.join('\n');
+  return updateRefs(content, new Map([[source, newRef]]));
 }
 
 /**
- * Update --ref values for multiple sources at once.
- * `updates` is a Map or object of { source: newRef }.
- * Returns the updated content string.
+ * Update refs without reserializing command lines. PURL refs are embedded in
+ * each source operand; legacy entries continue to use --ref.
  */
 export function updateRefs(content, updates) {
   const map = updates instanceof Map ? updates : new Map(Object.entries(updates));
-  const lines = content.split('\n');
-  const result = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    if (!trimmed || trimmed.startsWith('#')) {
-      result.push(line);
-      continue;
-    }
-
-    const lineSource = extractSource(trimmed);
-    if (lineSource && map.has(lineSource)) {
-      result.push(replaceRef(line, map.get(lineSource)));
-    } else {
-      result.push(line);
-    }
-  }
-
-  return result.join('\n');
+  return content
+    .split('\n')
+    .map(line => updateLineRefs(line, map))
+    .join('\n');
 }
 
-/**
- * Extract the source (e.g. "user/repo") from a vlurpfile line.
- */
-function extractSource(line) {
+export function parseVlurpLine(line) {
   const command = line.startsWith('vlurp ') ? line.slice(6).trim() : line;
   const args = parseArgs(command);
-  return args.length > 0 ? args[0] : null;
-}
-
-/**
- * Replace or insert --ref in a single vlurpfile line.
- */
-function replaceRef(line, newRef) {
-  // Match existing --ref and its value (handles quoted and unquoted)
-  const refPattern = /--ref\s+(?:"[^"]*"|\S+)/;
-  if (refPattern.test(line)) {
-    return line.replace(refPattern, `--ref ${newRef}`);
-  }
-
-  // No existing --ref -- append before trailing newline/whitespace
-  const trimmed = line.trimEnd();
-  return `${trimmed} --ref ${newRef}`;
-}
-
-/**
- * Parses a single vlurp command line.
- */
-function parseVlurpLine(line) {
-  // Remove 'vlurp' prefix if present
-  const command = line.startsWith('vlurp ') ? line.slice(6).trim() : line;
-
-  // Simple argument parser
-  const args = parseArgs(command);
-
   if (args.length === 0) {
     return null;
   }
 
+  if (args[0].startsWith('pkg:')) {
+    return parseCopyEntry(args);
+  }
+
+  return parseLegacyEntry(args);
+}
+
+function parseCopyEntry(args) {
+  const sources = [];
+  let index = 0;
+  while (args[index]?.startsWith('pkg:')) {
+    parseSourceOperand(args[index]);
+    sources.push(args[index++]);
+  }
+
+  const destination = args[index++];
+  if (!destination || destination.startsWith('-')) {
+    throw new Error('A cp-style vlurpfile entry requires SOURCE... DEST');
+  }
+
+  const entry = {
+    mode: 'copy',
+    source: sources[0],
+    sources,
+    destination,
+    targetPath: resolve(destination),
+    rootDir: resolve(destination),
+    filters: [],
+    preset: null,
+    ref: parseSourceOperand(sources[0]).ref,
+    as: null,
+    force: false
+  };
+
+  for (; index < args.length; index++) {
+    const arg = args[index];
+    if (arg === '-f' || arg === '--force') {
+      entry.force = true;
+    } else if (arg === '-n' || arg === '--dry-run' || arg === '-q' || arg === '--quiet') {
+      // Invocation-level presentation flags are valid but not persisted on the entry.
+    } else {
+      throw new Error(`Unsupported option in cp-style vlurpfile entry: ${arg}`);
+    }
+  }
+
+  return entry;
+}
+
+function parseLegacyEntry(args) {
   const source = args[0];
   const entry = {
+    mode: 'legacy',
     source,
+    sources: [source],
+    destination: null,
     rootDir: null,
     filters: [],
     preset: null,
@@ -143,37 +106,33 @@ function parseVlurpLine(line) {
     force: false
   };
 
-  // Parse options
-  for (let i = 1; i < args.length; i++) {
-    const arg = args[i];
-
-    if (arg === '-d' && args[i + 1]) {
-      entry.rootDir = args[++i];
-    } else if (arg === '--filter' && args[i + 1]) {
-      entry.filters.push(args[++i]);
-    } else if (arg === '--preset' && args[i + 1]) {
-      entry.preset = args[++i];
+  for (let index = 1; index < args.length; index++) {
+    const arg = args[index];
+    if (arg === '-d' && args[index + 1]) {
+      entry.rootDir = args[++index];
+    } else if (arg === '--filter' && args[index + 1]) {
+      entry.filters.push(args[++index]);
+    } else if (arg === '--preset' && args[index + 1]) {
+      entry.preset = args[++index];
       if (PRESETS[entry.preset]) {
         entry.filters = [...PRESETS[entry.preset].filters];
       }
-    } else if (arg === '--ref' && args[i + 1]) {
-      entry.ref = args[++i];
-    } else if (arg === '--as' && args[i + 1]) {
-      entry.as = args[++i];
+    } else if (arg === '--ref' && args[index + 1]) {
+      entry.ref = args[++index];
+    } else if (arg === '--as' && args[index + 1]) {
+      entry.as = args[++index];
     } else if (arg === '-f' || arg === '--force') {
       entry.force = true;
     }
   }
 
-  // Calculate target path
   if (entry.as && entry.rootDir) {
     entry.targetPath = resolve(entry.rootDir, entry.as);
   } else if (entry.as) {
     entry.targetPath = resolve(entry.as);
   } else if (entry.rootDir) {
-    const parts = source.split('/');
-    if (parts.length >= 2) {
-      const [user, repo] = parts;
+    const [user, repo] = source.split('/');
+    if (user && repo) {
       entry.targetPath = resolve(entry.rootDir, user, repo);
     }
   }
@@ -181,17 +140,101 @@ function parseVlurpLine(line) {
   return entry;
 }
 
-/**
- * Simple argument parser that handles quoted strings.
- */
-function parseArgs(string_) {
-  const args = [];
-  const regex = /(?:[^\s"]+|"[^"]*")+/g;
-  let match;
+function updateLineRefs(line, updates) {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('#')) {
+    return line;
+  }
 
-  while ((match = regex.exec(string_)) !== null) {
-    // Remove surrounding quotes
-    args.push(match[0].replaceAll(/^"|"$/g, ''));
+  let entry;
+  try {
+    entry = parseVlurpLine(trimmed);
+  } catch {
+    return line;
+  }
+
+  if (entry.mode === 'copy') {
+    let updated = line;
+    for (const source of entry.sources) {
+      if (updates.has(source)) {
+        updated = updated.replace(source, replaceSourceRef(source, updates.get(source)));
+      }
+    }
+
+    return updated;
+  }
+
+  if (!updates.has(entry.source)) {
+    return line;
+  }
+
+  return replaceLegacyRef(line, updates.get(entry.source));
+}
+
+function replaceLegacyRef(line, newRef) {
+  const refPattern = /--ref\s+(?:"[^"]*"|'[^']*'|\S+)/;
+  if (refPattern.test(line)) {
+    return line.replace(refPattern, `--ref ${newRef}`);
+  }
+
+  return `${line.trimEnd()} --ref ${newRef}`;
+}
+
+/** A small shell-word parser: quoting groups text, but nothing is expanded. */
+export function parseArgs(string_) {
+  const args = [];
+  let current = '';
+  let quote = null;
+  let escaped = false;
+
+  for (const character of string_) {
+    if (escaped) {
+      current += character;
+      escaped = false;
+      continue;
+    }
+
+    if (character === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      } else {
+        current += character;
+      }
+
+      continue;
+    }
+
+    if (character === '#' && current === '') {
+      break;
+    }
+
+    if (character === '"' || character === "'") {
+      quote = character;
+    } else if (/\s/.test(character)) {
+      if (current) {
+        args.push(current);
+        current = '';
+      }
+    } else {
+      current += character;
+    }
+  }
+
+  if (quote) {
+    throw new Error('Unterminated quote in vlurpfile entry');
+  }
+
+  if (escaped) {
+    current += '\\';
+  }
+
+  if (current) {
+    args.push(current);
   }
 
   return args;

@@ -3,8 +3,9 @@ import { resolve } from 'node:path';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import React, { useEffect, useState } from 'react';
+import { expandManifestSources, manifestSourceMatches } from '../manifest-sources.js';
 import { Fetcher } from '../remote.js';
-import { parseVlurpfile } from '../vlurpfile.js';
+import { parseVlurpfile, updateRef } from '../vlurpfile.js';
 
 export function PinCommand({ source, vlurpfilePath }) {
   const [status, setStatus] = useState('resolving');
@@ -28,9 +29,10 @@ export function PinCommand({ source, vlurpfilePath }) {
         const pinResults = [];
 
         // Filter to specific source if provided
+        const manifestSources = expandManifestSources(entries);
         const toPin = source
-          ? entries.filter(e => e.source === source || e.source.includes(source))
-          : entries.filter(e => !e.ref);
+          ? manifestSources.filter(item => manifestSourceMatches(item, source) && !item.ref)
+          : manifestSources.filter(item => !item.ref);
 
         if (toPin.length === 0) {
           if (source) {
@@ -45,23 +47,11 @@ export function PinCommand({ source, vlurpfilePath }) {
 
         let updatedContent = content;
 
-        for (const entry of toPin) {
-          const parts = entry.source.split('/');
-          if (parts.length < 2) {
-            pinResults.push({
-              source: entry.source,
-              status: 'error',
-              message: 'Invalid source format'
-            });
-            continue;
-          }
-
-          const [user, repo] = parts;
-
-          const sha = await fetcher.resolveHead(user, repo);
+        for (const item of toPin) {
+          const sha = await fetcher.resolveHead(item.user, item.repo);
           if (!sha) {
             pinResults.push({
-              source: entry.source,
+              source: item.raw,
               status: 'error',
               message: 'Could not resolve HEAD'
             });
@@ -70,23 +60,9 @@ export function PinCommand({ source, vlurpfilePath }) {
 
           const shortSha = sha.slice(0, 7);
 
-          // Update the vlurpfile content — find the line with this source and add --ref
-          const sourcePattern = new RegExp(
-            `(vlurp\\s+${escapeRegex(entry.source)}(?:\\s+[^\\n]*?)?)(?:\\s*(?:#.*)?)$`,
-            'gm'
-          );
+          updatedContent = updateRef(updatedContent, item.raw, shortSha);
 
-          updatedContent = updatedContent.replace(sourcePattern, (match, command) => {
-            // Don't add ref if already pinned
-            if (command.includes('--ref ')) {
-              return match;
-            }
-
-            const comment = match.slice(command.length);
-            return `${command} --ref ${shortSha}${comment}`;
-          });
-
-          pinResults.push({ source: entry.source, status: 'pinned', sha: shortSha });
+          pinResults.push({ source: item.raw, status: 'pinned', sha: shortSha });
           setResults([...pinResults]);
         }
 
@@ -162,8 +138,4 @@ async function findVlurpfile(explicitPath) {
   }
 
   return null;
-}
-
-function escapeRegex(string) {
-  return string.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }

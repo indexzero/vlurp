@@ -3,6 +3,37 @@ import { describe, it } from 'node:test';
 import { parseVlurpfile, updateRef, updateRefs } from '../src/vlurpfile.js';
 
 describe('vlurpfile parser', () => {
+  it('parses quoted PURL sources and a cp destination', () => {
+    const content =
+      "vlurp 'pkg:github/mattpocock/skills@abc1234#skills/writing-*' './my skills/' --force";
+    const [entry] = parseVlurpfile(content);
+
+    assert.equal(entry.mode, 'copy');
+    assert.deepEqual(entry.sources, ['pkg:github/mattpocock/skills@abc1234#skills/writing-*']);
+    assert.equal(entry.destination, './my skills/');
+    assert.equal(entry.ref, 'abc1234');
+    assert.equal(entry.force, true);
+  });
+
+  it('parses multiple PURL source operands', () => {
+    const [entry] = parseVlurpfile(
+      'vlurp pkg:github/user/a#one pkg:github/user/b#two ./destination'
+    );
+
+    assert.deepEqual(entry.sources, ['pkg:github/user/a#one', 'pkg:github/user/b#two']);
+    assert.equal(entry.destination, './destination');
+  });
+
+  it('distinguishes inline comments from PURL subpaths', () => {
+    const [entry] = parseVlurpfile(
+      'vlurp pkg:github/user/repo@abc1234#skills/* ./skills/ --force # reviewed source'
+    );
+
+    assert.equal(entry.sources[0], 'pkg:github/user/repo@abc1234#skills/*');
+    assert.equal(entry.destination, './skills/');
+    assert.equal(entry.force, true);
+  });
+
   it('should parse --ref flag', () => {
     const content = 'vlurp dcramer/dex -d ./skills --ref 939f6cb';
     const entries = parseVlurpfile(content);
@@ -69,6 +100,24 @@ vlurp user/repo -d ./vlurp
 });
 
 describe('vlurpfile writer - updateRef', () => {
+  it('updates a ref embedded in a PURL while preserving quotes and subpath', () => {
+    const source = 'pkg:github/user/repo@old1234#skills/writing-*';
+    const content = `vlurp '${source}' ./skills/`;
+
+    assert.equal(
+      updateRef(content, source, 'new5678'),
+      "vlurp 'pkg:github/user/repo@new5678#skills/writing-*' ./skills/"
+    );
+  });
+
+  it('adds an embedded ref to an unpinned PURL', () => {
+    const source = 'pkg:github/user/repo#skills/a';
+    assert.equal(
+      updateRef(`vlurp ${source} ./skills/`, source, 'abc1234'),
+      'vlurp pkg:github/user/repo@abc1234#skills/a ./skills/'
+    );
+  });
+
   it('should update an existing --ref value', () => {
     const content = 'vlurp user/repo -d ./skills --ref abc1234';
     const result = updateRef(content, 'user/repo', 'def5678');
