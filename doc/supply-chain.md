@@ -21,13 +21,13 @@ When a skill file gets injected into an LLM context, these attacks are possible:
 
 ## Pin your refs
 
-`--ref` pins a fetch to a specific git commit SHA. Pinned content is immutable. The same SHA always produces the same tarball.
+`@ref` in a PURL source pins a fetch to a specific git commit SHA. Pinned content is immutable. The same SHA always produces the same tarball.
 
 ```sh
-vlurp obra/superpowers -d .claude/skills --preset skills --ref e4f5a6b
+vlurp 'pkg:github/obra/superpowers@e4f5a6b#skills/*' .claude/skills/
 ```
 
-When `--ref` is omitted, vlurp fetches whatever is on the default branch right now. If the author pushed a malicious change thirty seconds ago, you have it. This is how supply chain attacks work: the content is fine when you first look, and different when you fetch.
+When `@ref` is omitted, vlurp fetches whatever is on the default branch right now. If the author pushed a malicious change thirty seconds ago, you have it. This is how supply chain attacks work: the content is fine when you first look, and different when you fetch.
 
 To pin all unpinned sources in a `.vlurpfile` to the current upstream HEAD:
 
@@ -43,13 +43,12 @@ Every `vlurp fetch` or `vlurp batch` produces a lineage record in `.vlurp.jsonl`
 
 ```json
 {
-  "source": "github:obra/superpowers",
+  "source": "pkg:github/obra/superpowers@e4f5a6b#skills/*",
   "ref": "e4f5a6b7c8d9",
   "ref_type": "commit",
   "fetched_at": "2026-03-15T06:00:00Z",
-  "filters": [],
-  "preset": "skills",
-  "as": null,
+  "destination": ".",
+  "files_root_relative": true,
   "files": {
     "skills/tdd/SKILL.md": { "sha256": "e3b0c442...", "size": 3421 },
     "skills/verify/SKILL.md": { "sha256": "7f83b165...", "size": 2891 }
@@ -151,7 +150,7 @@ See [ATTEST.H2H.md](../ATTEST.H2H.md) for the current attestation design.
 The security model is four layers deep:
 
 ```
-PIN     Immutable content via --ref
+PIN     Immutable content via @ref in the source PURL
 HASH    SHA-256 of every file in .vlurp.jsonl
 VERIFY  Check disk against lineage at any time
 SCAN    Know what the content does before you inject it

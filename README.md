@@ -17,40 +17,36 @@ npm install -g vlurp
 or run directly:
 
 ```sh
-npx vlurp <user>/<repo>
+npx vlurp 'pkg:github/<owner>/<repo>#<subpath>' <destination>
 ```
 
 ## Quick start
 
-Fetch a repo's Claude config:
+Copy matching directories from a GitHub repository:
 
 ```
-$ vlurp eyaltoledano/claude-task-master -d ./vlurp
+$ vlurp 'pkg:github/mattpocock/skills#skills/in-progress/writing-*' ./skills/
 
-  eyaltoledano/claude-task-master@HEAD
-  2 files
-  ./vlurp/eyaltoledano/claude-task-master/
+  ./skills/writing-beats/
+  ./skills/writing-fragments/
+  ./skills/writing-shape/
 ```
 
-Fetch skill files pinned to a commit, flattened into a named directory:
+Pin the same copy to a commit:
 
 ```
-$ vlurp obra/superpowers -d .claude/skills --preset skills --ref e4f5a6b
-
-  obra/superpowers@e4f5a6b
-  22 files (preset: skills)
-  .claude/skills/obra/superpowers/
+$ vlurp 'pkg:github/mattpocock/skills@2ab9580#skills/in-progress/writing-*' ./skills/
 ```
 
-Fetch a specific directory from deep inside a repo:
+The command follows familiar `cp SOURCE... DEST` rules. A selected directory or file is copied by basename into an existing destination directory. If a single source is copied to a missing destination, that destination becomes the copy.
 
-```
-$ vlurp whilp/dotfiles -d .claude/skills \
-    --filter ".claude/skills/duckdb-json/**" --as duckdb
+Copy multiple exact sources:
 
-  whilp/dotfiles@HEAD
-  3 files
-  .claude/skills/duckdb/
+```sh
+vlurp \
+  'pkg:github/anthropics/skills@main#skills/pdf' \
+  'pkg:github/anthropics/skills@main#skills/slides' \
+  ./skills/
 ```
 
 Check that nothing has been modified since you fetched:
@@ -109,17 +105,13 @@ Process multiple repos from a `.vlurpfile`:
 # .vlurpfile
 
 # Official Anthropic skills
-vlurp anthropics/skills -d ./vlurp --filter "skills/**" --filter "template/**"
+vlurp 'pkg:github/anthropics/skills@b7c8d9e#skills/*' ./skills/
 
 # obra/superpowers -- Core agent patterns
-vlurp obra/superpowers -d ./vlurp --filter "skills/**" --filter ".claude/**"
-
-# DuckDB skills from assorted dotfiles
-vlurp whilp/dotfiles -d ./vlurp --filter ".claude/skills/duckdb-json/**"
-vlurp PovertyAction/ipa-research-data-science-hub -d ./vlurp --filter ".claude/skills/duckdb/**"
+vlurp 'pkg:github/obra/superpowers@e4f5a6b#skills/*' ./skills/
 
 # Microsoft Amplifier -- multi-agent framework
-vlurp microsoft/amplifier -d ./vlurp --filter "**/*.md"
+vlurp 'pkg:github/microsoft/amplifier@4a5b6c7#**/*.md' ./docs/
 ```
 
 ```
@@ -129,7 +121,7 @@ $ vlurp batch .vlurpfile
 ## Commands
 
 ```
-vlurp <source>                       Fetch from a GitHub repo or gist
+vlurp SOURCE... DEST                 Copy PURL sources into local files
 vlurp batch <vlurpfile>              Process a .vlurpfile (batch fetch)
 vlurp verify <path>                  Check file integrity against lineage
 vlurp pin [source]                   Pin sources to current upstream HEAD
@@ -144,34 +136,19 @@ vlurp catalog-diff [old] [new]       Compare catalog snapshots
 ## Flags
 
 ```
--d <dir>              Root output directory
---ref <sha|tag>       Pin to a git ref (commit, tag, branch)
---as <name>           Flatten output into named directory
---preset <name>       Use a preset filter set
---filter <glob>       Glob pattern for file matching (repeatable)
---auto                Auto-detect repo structure
 --dry-run, -n         Preview without writing
 --force, -f           Overwrite without prompting
 --json                Machine-readable output (catalog-diff)
 --vlurpfile <path>    Explicit .vlurpfile path (upgrade)
 ```
 
-## Presets
-
-```
-claude      .claude/**, CLAUDE.md
-skills      skills/**, SKILL.md, **/*.md
-agents      agents/**, commands/**, **/*.md
-docs        **/*.md (excluding boilerplate)
-all-md      **/*.md
-minimal     .claude/**, CLAUDE.md only
-```
+The older `<user>/<repo> -d ... --filter ... --ref ...` form remains supported for migration. New commands should put the ref and selection in the PURL source.
 
 ## Feature guides
 
 | Guide | Covers |
 |-------|--------|
-| **[Fetching & Filtering](doc/fetch.md)** | Sources, globs, presets, `--ref`, `--as`, `--auto` |
+| **[Copying Remote Files](doc/fetch.md)** | PURL sources, selectors, refs, and cp semantics |
 | **[The .vlurpfile](doc/vlurpfile.md)** | Batch processing, manifest format, intent vs reality |
 | **[Supply Chain Security](doc/supply-chain.md)** | Lineage, verify, pin, scan, threat model |
 | **[Upgrades & Change Detection](doc/upgrade.md)** | outdated, diff, upgrade, catalog, catalog-diff |

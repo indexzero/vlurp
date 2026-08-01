@@ -60,7 +60,7 @@ This is `terraform plan` for your agent context. You see what would change befor
 vlurp upgrade
 
 # Upgrade a specific source
-vlurp upgrade obra/superpowers
+vlurp upgrade github:obra/superpowers
 
 # Preview without modifying anything
 vlurp upgrade --dry-run
@@ -76,8 +76,10 @@ vlurp upgrade --vlurpfile .vlurpfile.skills
 3. **Compares** against pinned refs to find outdated sources
 4. **Fetches** new content through the standard pipeline (download, extract, filter, hash, scan)
 5. **Catalogs** new content and diffs against the previous catalog
-6. **Rewrites** `.vlurpfile` with updated `--ref` values
+6. **Rewrites** `.vlurpfile` with updated PURL `@ref` values
 7. **Outputs** upgrade summary with catalog diff
+
+For cp-style entries, repository refs live inside each PURL source. Upgrade groups selectors by repository, fetches the new commit through the same copy planner, and rewrites `@ref` without changing `#subpath`, quoting, or the destination.
 
 The fetch pipeline is the same one used by `vlurp fetch` and `vlurp batch`. Upgraded content gets hashed, lineage gets written, scans run. No shortcuts.
 
@@ -109,26 +111,26 @@ $ vlurp upgrade --dry-run
 
 ### Vlurpfile rewriting
 
-`vlurp upgrade` rewrites the `.vlurpfile` to update `--ref` values. If a source had no `--ref`, one is added. Comments, blank lines, and argument ordering are preserved.
+`vlurp upgrade` rewrites the `.vlurpfile` to update PURL `@ref` values. If a source had no ref, one is embedded. Comments, blank lines, quoting, subpaths, and destinations are preserved. Legacy entries continue to receive `--ref` during migration.
 
-Before:
+Before (cp-style):
 
 ```sh
 # Core agent patterns
-vlurp obra/superpowers -d .claude/skills --preset skills --ref e4f5a6b
+vlurp 'pkg:github/obra/superpowers@e4f5a6b#skills/*' .claude/skills/
 
 # Multi-agent framework
-vlurp microsoft/amplifier -d .claude/skills --filter "**/*.md"
+vlurp 'pkg:github/microsoft/amplifier#**/*.md' .claude/docs/
 ```
 
 After `vlurp upgrade`:
 
 ```sh
 # Core agent patterns
-vlurp obra/superpowers -d .claude/skills --preset skills --ref 9c8b7a6
+vlurp 'pkg:github/obra/superpowers@9c8b7a6#skills/*' .claude/skills/
 
 # Multi-agent framework
-vlurp microsoft/amplifier -d .claude/skills --filter "**/*.md" --ref d3e2f1a
+vlurp 'pkg:github/microsoft/amplifier@d3e2f1a#**/*.md' .claude/docs/
 ```
 
 The superpowers entry's ref was updated. The amplifier entry gained a ref -- it was previously unpinned, now pinned to the version that was fetched.

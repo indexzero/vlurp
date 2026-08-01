@@ -1,127 +1,101 @@
-# Fetching & Filtering
+# Copying Remote Files
 
-vlurp fetches files from GitHub repositories and gists. It downloads tarballs -- not git clones -- so you get files without history, without `.git` directories, and without executing anything on your machine.
-
-You do not need a forty-nine step installer to get a text file onto your disk.
-
-## Sources
-
-vlurp accepts three source formats:
+vlurp treats a GitHub repository as a remote filesystem and uses the familiar command shape:
 
 ```sh
-# user/repo shorthand
-vlurp obra/superpowers
-
-# Full GitHub URL
-vlurp https://github.com/microsoft/amplifier
-
-# Gist URL
-vlurp https://gist.github.com/user/abc123def456
+vlurp SOURCE... DEST
 ```
 
-All three produce the same result: files on disk.
+The sources are Package URLs (PURLs). The destination is a local file or directory.
 
-## Output directory
+## Source grammar
 
-By default, vlurp writes to `./<user>/<repo>`. Use `-d` to set a root directory:
+```text
+pkg:github/<owner>/<repository>@<ref>#<subpath>
+```
+
+The ref and subpath are optional:
 
 ```sh
-vlurp obra/superpowers -d .claude/skills
-# writes to .claude/skills/obra/superpowers/
+# Repository root at its default branch
+vlurp 'pkg:github/obra/superpowers' ./superpowers
+
+# Exact directory at a tag, branch, or commit
+vlurp 'pkg:github/anthropics/skills@b7c8d9e#skills/pdf' ./skills/
+
+# Exact file
+vlurp 'pkg:github/user/repo@v1.0.0#docs/guide.md' ./docs/
 ```
 
-Use `--as` to flatten the path:
+When `@ref` is omitted, GitHub's default branch is resolved at execution time. A commit SHA is the reproducible choice.
+
+## PURL patterns
+
+A canonical PURL identifies one exact repository subpath. vlurp extends the `#subpath` with glob selection:
 
 ```sh
-vlurp obra/superpowers -d .claude/skills --as superpowers
-# writes to .claude/skills/superpowers/
+vlurp 'pkg:github/mattpocock/skills#skills/in-progress/writing-*' ./skills/
 ```
 
-`--as` strips the `owner/repo` prefix and all internal path nesting. When you're fetching skill files from deep inside a repo's directory tree, `--as` puts them where you can find them.
+This produces:
+
+```text
+./skills/writing-beats/
+./skills/writing-fragments/
+./skills/writing-shape/
+```
+
+Only the subpath can contain glob syntax. The provider, owner, repository, and ref must be exact. Quote patterned PURLs so your shell does not interpret `*`, `?`, or brackets.
+
+Every exact `pkg:github` PURL is a valid vlurp source. Once unescaped glob syntax appears in its subpath, the operand is a vlurp source pattern rather than a canonical PURL identity.
+
+## Copy semantics
+
+vlurp follows recursive `cp` operand semantics:
+
+- A source copied into an existing directory is placed beneath it by basename.
+- A single source copied to a missing destination creates that destination.
+- Multiple sources require an existing destination directory.
+- Two selected sources with the same basename are rejected before anything is written.
+- Existing matching files are overwritten; unrelated files remain in place.
+- Without `--force`, vlurp asks before copying over an existing destination path.
+
+Examples:
 
 ```sh
-vlurp whilp/dotfiles -d ./skills --filter ".claude/skills/duckdb-json/**" --as duckdb
-# instead of: ./skills/whilp/dotfiles/.claude/skills/duckdb-json/SKILL.md
-# you get:    ./skills/duckdb/SKILL.md
+# Rename one exact file
+vlurp 'pkg:github/user/repo#docs/guide.md' ./README.md
+
+# Copy two directories into an existing directory
+vlurp \
+  'pkg:github/anthropics/skills@main#skills/pdf' \
+  'pkg:github/anthropics/skills@main#skills/slides' \
+  ./skills/
 ```
 
-## Filtering
+## Safety
 
-By default, vlurp matches a broad set of agent-relevant files: `.claude/**`, `CLAUDE.md`, `**/*.md`, `agents/**`, `commands/**`. Use `--filter` to override:
+Subpaths must be relative and cannot contain empty, `.` or `..` segments or encoded path separators. Archive paths that escape the repository are discarded, and symbolic and hard links are not extracted. Copy plans are validated for destination collisions before writing.
+
+## Preview and overwrite
 
 ```sh
-# Only TypeScript files
-vlurp user/repo --filter "*.ts" --filter "*.tsx"
-
-# Only a specific directory
-vlurp user/repo --filter "lib/**"
-
-# Combine inclusions and exclusions
-vlurp user/repo --filter "**/*.md" --filter "!README.md"
+vlurp 'pkg:github/user/repo#skills/*' ./skills/ --dry-run
+vlurp 'pkg:github/user/repo#skills/*' ./skills/ --force
 ```
 
-`--filter` accepts glob patterns. Prefix with `!` to exclude. Multiple `--filter` flags are combined.
-
-## Presets
-
-Presets are named filter sets for common repo structures:
-
-```
-claude      .claude/**, CLAUDE.md
-skills      skills/**, SKILL.md, **/*.md
-agents      agents/**, commands/**, **/*.md
-docs        **/*.md (excluding boilerplate)
-all-md      **/*.md
-minimal     .claude/**, CLAUDE.md only
-```
-
-```sh
-vlurp obra/superpowers --preset skills
-vlurp eyaltoledano/claude-task-master --preset claude
-```
-
-Presets exclude boilerplate by default (README.md, LICENSE, CONTRIBUTING.md, etc.). If you want everything, use `all-md` or explicit `--filter` globs.
-
-## Auto-detect
-
-`--auto` inspects the tarball contents and picks the best preset:
-
-```sh
-vlurp microsoft/amplifier --auto
-```
-
-If the repo has a `.claude/` directory, `--auto` uses `claude`. If it has `skills/` or `SKILL.md` files, it uses `skills`. Otherwise it falls back to the default filter set.
-
-## Pinning with `--ref`
-
-`--ref` pins a fetch to a specific git commit, tag, or branch:
-
-```sh
-vlurp obra/superpowers --ref e4f5a6b
-vlurp anthropics/skills --ref v1.2.0
-vlurp microsoft/amplifier --ref main
-```
-
-When `--ref` is a commit SHA, the fetch is immutable. The same SHA always produces the same content. This is the foundation of everything in vlurp's security model.
-
-When `--ref` is omitted, vlurp fetches the default branch HEAD. This is the mutable case. Whatever the author pushed most recently is what you get. If the author pushed a malicious change thirty seconds ago, you have it. Pin your refs.
-
-## Dry run
-
-`--dry-run` shows what would be fetched without writing anything:
-
-```sh
-$ vlurp obra/superpowers --preset skills --dry-run
-
-  obra/superpowers@HEAD
-  would fetch 22 files (preset: skills)
-  would write to ./obra/superpowers/
-```
+`--dry-run` resolves the remote selector and prints the concrete copy plan without writing files or lineage.
 
 ## Lineage
 
-Every fetch produces a lineage record in `.vlurp.jsonl` with SHA-256 hashes of every file. This happens automatically. See [Supply Chain Security](supply-chain.md) for details.
+Every completed copy writes `.vlurp.jsonl` beside the copied set. Its file keys are relative to the lineage file, so `vlurp verify <directory>` can check the exact destination layout without reconstructing it from the repository name.
 
-## Scanning
+## Legacy syntax
 
-Fetched content is scanned for prompt injection, tool escalation, and exfiltration patterns by default. See [Supply Chain Security](supply-chain.md) for details.
+The v2 fetch grammar remains available during migration:
+
+```sh
+vlurp user/repo -d ./skills --filter 'skills/*' --ref abc1234
+```
+
+New manifests and commands should use PURL source operands. The PURL carries repository identity, ref, and selection in one value, eliminating `-d`, `--filter`, `--as`, and `--strip-prefix` path gymnastics.

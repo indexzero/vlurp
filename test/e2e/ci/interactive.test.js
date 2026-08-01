@@ -9,6 +9,30 @@ import { runVlurpInPty } from '../helpers/cli.js';
 const describePty = process.platform === 'linux' ? describe : describe.skip;
 
 describePty('interactive CLI', () => {
+  it('prompts for a PURL destination collision and cancels semantically', async t => {
+    const workspace = await mkdtemp(join(tmpdir(), 'vlurp-purl-pty-e2e-'));
+    const destination = join(workspace, 'skills');
+    const target = join(destination, 'writing-beats');
+    const marker = join(target, 'keep.txt');
+    t.after(() => rm(workspace, { recursive: true, force: true }));
+
+    await mkdir(target, { recursive: true });
+    await writeFile(marker, 'keep me');
+    const source =
+      'pkg:github/mattpocock/skills@2ab958093e83e0ec752e6c1c5932da465bf23e0c#skills/in-progress/writing-beats';
+    const cli = runVlurpInPty([source, destination, '--quiet'], { cwd: workspace });
+
+    await cli.waitForText('Continue? (y/N):');
+    assert.match(cli.output, /1 destination path\(s\) already exist/);
+
+    cli.write('n\r');
+    const exit = await cli.waitForExit();
+
+    assert.equal(exit.exitCode, 0, cli.transcript);
+    assert.match(cli.output, /vlurping cancelled/);
+    assert.equal(await readFile(marker, 'utf8'), 'keep me');
+  });
+
   it('prompts before overwriting and preserves files when cancelled', async t => {
     const workspace = await mkdtemp(join(tmpdir(), 'vlurp-pty-e2e-'));
     const destination = join(workspace, 'downloads');
