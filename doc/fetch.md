@@ -119,8 +119,9 @@ The first two commands use repository shorthand, which preserves repository-rela
 vlurp follows recursive `cp` operand semantics:
 
 - A source copied into an existing directory is placed beneath it by basename.
-- A single source copied to a missing destination creates that destination.
-- Multiple sources require an existing destination directory.
+- A destination ending in `/` is always a directory. If it is missing, vlurp creates it and places sources beneath it by basename, so `DEST/` gives the same layout whether or not it existed. If it names an existing file, the copy is rejected.
+- A single source copied to a missing destination without a trailing `/` creates that destination as the copy.
+- Multiple sources require an existing destination directory or a destination ending in `/`.
 - Two selected sources with the same basename are rejected before anything is written.
 - Existing matching files are overwritten; unrelated files remain in place.
 - Without `--force`, vlurp asks before copying over an existing destination path.
@@ -130,6 +131,9 @@ Examples:
 ```sh
 # Rename one exact file
 vlurp 'pkg:github/user/repo#docs/guide.md' ./README.md
+
+# Copy one file into a directory, creating it if it is missing
+vlurp 'pkg:github/user/repo#docs/guide.md' ./references/docs/
 
 # Copy two directories into an existing directory
 vlurp \

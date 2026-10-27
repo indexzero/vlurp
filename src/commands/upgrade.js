@@ -7,6 +7,7 @@ import Spinner from 'ink-spinner';
 import React, { useEffect, useState } from 'react';
 import { buildCatalog } from '../catalog.js';
 import { diffCatalogs, formatCatalogDiff } from '../catalog-diff.js';
+import { endsWithSeparator } from '../copy-plan.js';
 import { copySources } from '../copy-sources.js';
 import { appendLineage, createLineageRecord, hashDirectory } from '../lineage.js';
 import { expandManifestSources, manifestSourceMatches } from '../manifest-sources.js';
@@ -285,6 +286,10 @@ function collectRootDirs(entries) {
 
 function copyLineageRoot(destination) {
   const path = resolve(destination);
+  if (endsWithSeparator(destination)) {
+    return path;
+  }
+
   try {
     return statSync(path).isDirectory() ? path : dirname(path);
   } catch {

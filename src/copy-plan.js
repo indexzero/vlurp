@@ -52,9 +52,18 @@ export async function createCopyPlan(selections, destination, transferOptions = 
 
   const destinationPath = resolve(destination);
   const destinationStat = await optionalLstat(destinationPath);
-  const destinationIsDirectory = destinationStat?.isDirectory() || false;
+  // A trailing separator names a directory to copy into, created if missing,
+  // so DEST/ produces the same layout whether or not it already exists.
+  const intoDirectory = endsWithSeparator(destination);
+  if (intoDirectory && destinationStat && !destinationStat.isDirectory()) {
+    throw new Error(`DEST ends with a path separator but is not a directory: ${destinationPath}`);
+  }
+
+  const destinationIsDirectory = destinationStat?.isDirectory() || intoDirectory;
   if (selections.length > 1 && !destinationIsDirectory) {
-    throw new Error('When copying multiple sources, DEST must be an existing directory');
+    throw new Error(
+      'When copying multiple sources, DEST must be an existing directory or end with a path separator'
+    );
   }
 
   const entries = [];
@@ -139,6 +148,20 @@ export async function createCopyPlan(selections, destination, transferOptions = 
   };
   await validateReservedTargets(plan);
   return plan;
+}
+
+/** True when a DEST operand ends with a path separator, naming a directory. */
+export function endsWithSeparator(destination) {
+  return sep === '\\' ? /[\\/]$/.test(destination) : destination.endsWith('/');
+}
+
+/**
+ * Resolve a DEST operand against baseDir, keeping a trailing separator so a
+ * resolved DEST/ still names a directory for createCopyPlan.
+ */
+export function resolveDestination(baseDir, destination) {
+  const resolved = resolve(baseDir, destination);
+  return endsWithSeparator(destination) && !resolved.endsWith(sep) ? `${resolved}${sep}` : resolved;
 }
 
 export async function executeCopyPlan(plan) {

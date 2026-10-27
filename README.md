@@ -57,7 +57,7 @@ Embed the ref in the PURL to pin the same copy:
 $ vlurp 'pkg:github/mattpocock/skills@2ab9580#skills/in-progress/writing-*' ./skills/
 ```
 
-The command follows familiar `cp SOURCE... DEST` rules. A selected directory or file is copied by basename into an existing destination directory. If a single source is copied to a missing destination, that destination becomes the copy.
+The command follows familiar `cp SOURCE... DEST` rules. A selected directory or file is copied by basename into an existing destination directory, or into a destination ending in `/`, which vlurp creates if it is missing. If a single source is copied to a missing destination without a trailing `/`, that destination becomes the copy.
 
 Copy multiple exact sources:
 

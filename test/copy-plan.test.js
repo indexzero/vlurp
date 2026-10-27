@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { createCopyPlan, executeCopyPlan, selectRepositoryEntries } from '../src/copy-plan.js';
 
@@ -178,6 +178,72 @@ describe('cp-style copy planning', () => {
       createCopyPlan(selections, join(temporaryDirectory, 'missing')),
       /existing directory/i
     );
+  });
+
+  it('creates a missing DEST/ and copies a file into it', async () => {
+    const destination = join(temporaryDirectory, 'references', 'of-structure');
+    const selections = await selectRepositoryEntries(repository, {
+      repo: 'repo',
+      subpath: 'README.md',
+      pattern: false,
+      raw: 'pkg:github/user/repo#README.md'
+    });
+    const plan = await createCopyPlan(selections, `${destination}${sep}`);
+
+    assert.equal(plan.entries[0].targetPath, join(destination, 'README.md'));
+    assert.equal(plan.lineageRoot, destination);
+
+    await executeCopyPlan(plan);
+    assert.equal(await readFile(join(destination, 'README.md'), 'utf8'), 'readme');
+  });
+
+  it('copies a directory beneath a missing DEST/ by basename', async () => {
+    const destination = join(temporaryDirectory, 'skills');
+    const selections = await selectRepositoryEntries(repository, {
+      repo: 'repo',
+      subpath: 'skills/writing-a',
+      pattern: false,
+      raw: 'pkg:github/user/repo#skills/writing-a'
+    });
+    const plan = await createCopyPlan(selections, `${destination}${sep}`);
+
+    assert.equal(plan.entries[0].targetPath, join(destination, 'writing-a'));
+    assert.equal(plan.lineageRoot, destination);
+
+    await executeCopyPlan(plan);
+    assert.equal(await readFile(join(destination, 'writing-a', 'SKILL.md'), 'utf8'), 'a');
+  });
+
+  it('creates a missing DEST/ for multiple cp sources', async () => {
+    const destination = join(temporaryDirectory, 'missing');
+    const selections = await selectRepositoryEntries(repository, {
+      repo: 'repo',
+      subpath: 'skills/writing-*',
+      pattern: true,
+      raw: 'pkg:github/user/repo#skills/writing-*'
+    });
+    const plan = await createCopyPlan(selections, `${destination}${sep}`);
+
+    await executeCopyPlan(plan);
+    assert.equal(await readFile(join(destination, 'writing-a', 'SKILL.md'), 'utf8'), 'a');
+    assert.equal(await readFile(join(destination, 'writing-b', 'SKILL.md'), 'utf8'), 'b');
+  });
+
+  it('rejects DEST/ when it names an existing file', async () => {
+    const destination = join(temporaryDirectory, 'taken');
+    await writeFile(destination, 'not a directory');
+    const selections = await selectRepositoryEntries(repository, {
+      repo: 'repo',
+      subpath: 'README.md',
+      pattern: false,
+      raw: 'pkg:github/user/repo#README.md'
+    });
+
+    await assert.rejects(
+      createCopyPlan(selections, `${destination}${sep}`),
+      /ends with a path separator but is not a directory/
+    );
+    assert.equal(await readFile(destination, 'utf8'), 'not a directory');
   });
 
   it('rejects basename collisions before copying', async () => {
