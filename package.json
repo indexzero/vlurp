@@ -1,6 +1,6 @@
 {
   "name": "vlurp",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "A fun CLI tool to quickly slurp files from GitHub repositories and gists",
   "type": "module",
   "main": "src/index.js",
