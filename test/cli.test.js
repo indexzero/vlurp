@@ -1,13 +1,23 @@
 import { strict as assert } from 'node:assert';
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const binPath = join(__dirname, '..', 'bin', 'vlurp');
+const { version } = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'));
 
 describe('CLI', () => {
+  for (const flag of ['-v', '--version']) {
+    it(`should print the package version with ${flag}`, () => {
+      // execSync throws on a non-zero exit, so returning output implies exit 0
+      const output = execSync(`node ${binPath} ${flag}`, { encoding: 'utf8', stdio: 'pipe' });
+      assert.equal(output.trim(), version, `${flag} should print the package.json version`);
+    });
+  }
+
   it('should show help with --help', () => {
     const output = execSync(`node ${binPath} --help`, { encoding: 'utf8' });
     assert.ok(output.includes('vlurp'), 'Help should mention vlurp');
