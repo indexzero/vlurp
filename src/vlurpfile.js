@@ -1,9 +1,14 @@
 import { resolve } from 'node:path';
+import process from 'node:process';
 import { PRESETS } from './presets.js';
 import { parseSourceOperand, replaceSourceRef } from './source-operand.js';
 
-/** Parse legacy and cp-style commands from a .vlurpfile. */
-export function parseVlurpfile(content) {
+/**
+ * Parse legacy and cp-style commands from a .vlurpfile. Relative DEST, -d, and
+ * --as paths resolve from baseDir; commands pass the .vlurpfile's directory so
+ * a .vlurpfile writes the same files from any working directory.
+ */
+export function parseVlurpfile(content, { baseDir = process.cwd() } = {}) {
   const entries = [];
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
@@ -11,7 +16,7 @@ export function parseVlurpfile(content) {
       continue;
     }
 
-    const entry = parseVlurpLine(trimmed);
+    const entry = parseVlurpLine(trimmed, { baseDir });
     if (entry) {
       entries.push(entry);
     }
@@ -36,7 +41,7 @@ export function updateRefs(content, updates) {
     .join('\n');
 }
 
-export function parseVlurpLine(line) {
+export function parseVlurpLine(line, { baseDir = process.cwd() } = {}) {
   const command = line.startsWith('vlurp ') ? line.slice(6).trim() : line;
   const args = parseArgs(command);
   if (args.length === 0) {
@@ -44,13 +49,13 @@ export function parseVlurpLine(line) {
   }
 
   if (args[0].startsWith('pkg:')) {
-    return parseCopyEntry(args);
+    return parseCopyEntry(args, baseDir);
   }
 
-  return parseLegacyEntry(args);
+  return parseLegacyEntry(args, baseDir);
 }
 
-function parseCopyEntry(args) {
+function parseCopyEntry(args, baseDir) {
   const sources = [];
   let index = 0;
   while (args[index]?.startsWith('pkg:')) {
@@ -68,8 +73,8 @@ function parseCopyEntry(args) {
     source: sources[0],
     sources,
     destination,
-    targetPath: resolve(destination),
-    rootDir: resolve(destination),
+    targetPath: resolve(baseDir, destination),
+    rootDir: resolve(baseDir, destination),
     filters: [],
     globs: [],
     iglobs: [],
@@ -101,7 +106,7 @@ function parseCopyEntry(args) {
   return entry;
 }
 
-function parseLegacyEntry(args) {
+function parseLegacyEntry(args, baseDir) {
   const source = args[0];
   const entry = {
     mode: 'legacy',
@@ -116,10 +121,11 @@ function parseLegacyEntry(args) {
     force: false
   };
 
+  let rootOption = null;
   for (let index = 1; index < args.length; index++) {
     const arg = args[index];
     if (arg === '-d' && args[index + 1]) {
-      entry.rootDir = args[++index];
+      rootOption = args[++index];
     } else if (arg === '--filter' && args[index + 1]) {
       entry.filters.push(args[++index]);
     } else if (arg === '--preset' && args[index + 1]) {
@@ -138,11 +144,10 @@ function parseLegacyEntry(args) {
 
   assertKnownPreset(entry.preset);
 
-  if (entry.as && entry.rootDir) {
+  entry.rootDir = resolve(baseDir, rootOption ?? '.');
+  if (entry.as) {
     entry.targetPath = resolve(entry.rootDir, entry.as);
-  } else if (entry.as) {
-    entry.targetPath = resolve(entry.as);
-  } else if (entry.rootDir) {
+  } else if (rootOption) {
     const [user, repo] = source.split('/');
     if (user && repo) {
       entry.targetPath = resolve(entry.rootDir, user, repo);

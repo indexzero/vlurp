@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import process from 'node:process';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
@@ -23,7 +23,7 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet: _quiet }) {
         setStatus('parsing');
         const vlurpfilePath = resolve(vlurpfile);
         const content = await readFile(vlurpfilePath, 'utf8');
-        const parsed = parseVlurpfile(content);
+        const parsed = parseVlurpfile(content, { baseDir: dirname(vlurpfilePath) });
 
         setEntries(parsed);
 
@@ -35,7 +35,6 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet: _quiet }) {
                 return {
                   ...entry,
                   status: 'would-fetch',
-                  targetPath: resolve(entry.destination),
                   message: `Would copy ${entry.sources.length} source(s) to ${entry.destination}`
                 };
               }
@@ -73,7 +72,7 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet: _quiet }) {
             if (entry.mode === 'copy') {
               const copyResult = await copySources({
                 sources: entry.sources,
-                destination: entry.destination,
+                destination: entry.targetPath,
                 force: force || entry.force,
                 globs: entry.globs,
                 iglobs: entry.iglobs,
@@ -82,7 +81,6 @@ export function BatchCommand({ vlurpfile, dryRun, force, quiet: _quiet }) {
               batchResults.push({
                 ...entry,
                 status: copyResult.status === 'complete' ? 'success' : copyResult.status,
-                targetPath: resolve(entry.destination),
                 message: `${entry.sources.length} source(s) -> ${entry.destination}`
               });
               setResults([...batchResults]);

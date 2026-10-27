@@ -36,7 +36,9 @@ vlurp ./.vlurpfile --force
 vlurp ./skills/kabocha/.vlurpfile
 ```
 
-Entries run sequentially. A failed entry is reported without preventing later entries from running. Relative destinations resolve from the current directory, so run a nested `.vlurpfile` from the directory its paths are written for.
+Entries run sequentially. A failed entry is reported without preventing later entries from running.
+
+Relative paths in a `.vlurpfile` (`DEST`, `-d`, and `--as`) resolve from the directory that contains the `.vlurpfile`, not from your current directory. `vlurp ./skills/kabocha/.vlurpfile` writes the same files whether you run it from the repository root or from `skills/kabocha`. `upgrade`, `pin`, and `outdated` read paths the same way.
 
 Any operand that starts with `.`, `/`, or `~`, or that names an existing file, is a local file. GitHub owners cannot start with those characters, so this never shadows `owner/repo` shorthand. vlurp reads the file to decide what to do: if the first non-blank, non-comment line is a JSON object, the file is lineage and vlurp restores from it (see [Restore from lineage](#restore-from-lineage)); otherwise it runs as a `.vlurpfile`.
 

@@ -169,6 +169,8 @@ $ vlurp ./.vlurpfile
 $ vlurp ./.vlurpfile --dry-run
 ```
 
+Relative paths in a `.vlurpfile` resolve from the directory the file lives in, so `vlurp ./skills/kabocha/.vlurpfile` writes the same files from any working directory.
+
 ## Restore from lineage
 
 Every PURL copy writes a `.vlurp.jsonl` that records each file it wrote and the sha256 of its bytes. That record is also a list of what is safe to fetch, so a repository can commit only the lineage and fetch the content on demand:

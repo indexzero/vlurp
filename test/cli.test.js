@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { execFileSync, execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import process from 'node:process';
@@ -145,6 +145,14 @@ describe('CLI local file operands', () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Dry run - would process 1 entries/);
     assert.match(result.stdout, /pkg:github\/user\/repo@abc1234#docs/);
+  });
+
+  it('resolves .vlurpfile destinations from the file directory, not the cwd', async () => {
+    const result = runVlurp(['./x/.vlurpfile', '--dry-run']);
+    assert.equal(result.status, 0, result.stderr);
+    // Ink wraps long lines at 80 columns; rejoin them before matching the path.
+    const output = result.stdout.replaceAll('\n', '');
+    assert.ok(output.includes(`-> ${join(await realpath(workspace), 'x', 'docs')}`), result.stdout);
   });
 
   it('restores from a .vlurp.jsonl operand', async () => {

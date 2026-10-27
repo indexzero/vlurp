@@ -143,7 +143,8 @@ Usage:
 Local files:
   A path operand (starting with ., /, or ~, or naming an existing file) is
   routed by its content. JSON lines restore from lineage; anything else runs
-  as a .vlurpfile. Restore fetches each record's source, writes only the
+  as a .vlurpfile, whose relative paths resolve from the directory it lives
+  in. Restore fetches each record's source, writes only the
   recorded paths, and writes nothing unless every sha256 matches. It skips
   files that already match, refuses locally modified files unless --force,
   and never rewrites .vlurp.jsonl.

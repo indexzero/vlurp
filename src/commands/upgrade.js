@@ -100,7 +100,7 @@ async function runUpgrade(options) {
   }
 
   const content = await readFile(filePath, 'utf8');
-  const entries = parseVlurpfile(content);
+  const entries = parseVlurpfile(content, { baseDir: dirname(filePath) });
 
   if (entries.length === 0) {
     setError('No entries found in vlurpfile');
@@ -273,7 +273,7 @@ function collectRootDirs(entries) {
   for (const entry of entries) {
     dirs.add(
       entry.mode === 'copy'
-        ? copyLineageRoot(entry.destination)
+        ? copyLineageRoot(entry.targetPath)
         : entry.rootDir
           ? resolve(entry.rootDir)
           : process.cwd()
@@ -350,7 +350,7 @@ async function fetchSourceEntries(srcEntries, upstreamSha, resolvedRefs, setCurr
         });
         await copySources({
           sources,
-          destination: entry.destination,
+          destination: entry.targetPath,
           force: true,
           globs: entry.globs,
           iglobs: entry.iglobs,
