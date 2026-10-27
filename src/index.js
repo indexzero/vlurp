@@ -17,7 +17,9 @@ export {
   createLineageRecord,
   hashDirectory,
   hashFile,
+  parseLineageStrict,
   readLineage,
+  readLineageStrict,
   verifyFiles
 } from './lineage.js';
 export { PRESETS } from './presets.js';
@@ -29,6 +31,7 @@ export {
   Validator,
   validateUrl
 } from './remote.js';
+export { restoreLineage } from './restore.js';
 export {
   scanDirectory,
   scanFileContent,

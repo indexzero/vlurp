@@ -69,6 +69,26 @@ describe('Parser', () => {
     it('should throw on invalid URL', () => {
       assert.throws(() => parser.parse('https://gitlab.com/user/repo'), /Invalid input format/);
     });
+
+    it('rejects a lineage JSON line instead of inventing a null owner', () => {
+      const line = JSON.stringify({
+        schema: 2,
+        source: 'pkg:github/indexzero/of-structure@d158c8c#skills/doc.md',
+        ref: 'd158c8c'
+      });
+      assert.throws(() => parser.parse(line), /Invalid input format/);
+    });
+
+    it('rejects local paths that look like owner/repo', () => {
+      assert.throws(() => parser.parse('./a/b/.vlurpfile'), /Invalid input format/);
+      assert.throws(() => parser.parse('a/b/c'), /Invalid input format/);
+    });
+
+    it('still accepts hyphenated owners, refs, and .git suffixes', () => {
+      assert.equal(parser.parse('some-owner/repo.js').user, 'some-owner');
+      assert.equal(parser.parse('user/repo', { ref: 'abc1234' }).ref, 'abc1234');
+      assert.equal(parser.parse('nodejs/node.git').repo, 'node');
+    });
   });
 });
 

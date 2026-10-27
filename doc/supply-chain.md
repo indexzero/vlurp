@@ -39,7 +39,7 @@ This is the minimum viable supply chain protection. Without pinning, everything 
 
 ## Lineage
 
-Every `vlurp fetch` or `vlurp batch` produces a lineage record in `.vlurp.jsonl`:
+Every fetch, PURL copy, or `.vlurpfile` run (`vlurp ./path/.vlurpfile`) produces a lineage record in `.vlurp.jsonl`:
 
 ```json
 {
@@ -65,6 +65,35 @@ Every field matters:
 Lineage records are JSONL -- one JSON object per line. Append-friendly, git-merge-friendly, and grep-friendly.
 
 The `.vlurp.jsonl` file should be committed alongside the content it describes. When a teammate opens a PR that adds new skill files, the lineage is in the same diff. Review the content AND its provenance.
+
+## Restore
+
+Lineage records what was fetched. It is also a record of what is safe to fetch: the exact source, the ref, the paths, and the hash of every file. So a repository can commit only the lineage and fetch the content when it is needed:
+
+```gitignore
+# Keep the lineage; restore the content from it
+.claude/skills/*
+!.claude/skills/.vlurp.jsonl
+```
+
+```sh
+vlurp ./.claude/skills/.vlurp.jsonl
+```
+
+Ignore a directory that holds only fetched content, and ignore its contents (`dir/*`) rather than the directory itself, so that git can still track `.vlurp.jsonl`.
+
+The guarantee is the same as for committed content: only bytes whose sha256 matches the record land on disk.
+
+- Restore writes only the paths listed in the record. Absolute paths, `..` segments, symbolic links, and special files are refused before any network access.
+- For each recorded path, the bytes come from the file inside the record's PURL selection, at its recorded ref, that has the recorded sha256. If no upstream file matches, the restore fails with `upstream content for <path> no longer matches the recorded sha256 at <ref>`.
+- Every file across every record is fetched and checked before anything is written. One mismatch means nothing is written. Each file is written to a temporary file in the same directory and then renamed into place.
+- Files that already match are `unchanged` and are not fetched. A file that differs is `modified`, and the restore fails unless `--force` is set, in which case the verified upstream bytes replace it.
+- An unpinned record is fetched from the default branch with a warning. Its hashes are still enforced, so upstream changes make the restore fail rather than land.
+- Restore never writes `.vlurp.jsonl`. The lineage is a lock: restoring cannot change what it allows.
+- `--dry-run` reports each file as missing (would be fetched), `unchanged`, or `modified`, without network access.
+- A malformed line, or a legacy record from repository shorthand (one without `"schema": 2`), is an error. Re-copy that content with a `pkg:github/...` source to get restorable lineage.
+
+The exit code is non-zero when anything fails, including a dry run that finds a `modified` file without `--force`.
 
 ## Verify
 
@@ -155,6 +184,8 @@ HASH    SHA-256 of every file in .vlurp.jsonl
 VERIFY  Check disk against lineage at any time
 SCAN    Know what the content does before you inject it
 ```
+
+Restore reuses the PIN and HASH layers: it fetches only what the lineage pins, and writes only bytes that match the lineage hashes.
 
 No layer is sufficient alone. Together they turn an invisible attack vector into an auditable one. You pin so content can't change. You hash so changes are detectable. You verify so you know nothing has been tampered with. You scan so you understand what you're trusting.
 

@@ -25,21 +25,56 @@ Rules:
 - `--force`, `--quiet`, and `--dry-run` are valid invocation flags.
 - Presets work in both PURL copy and repository shorthand entries.
 
-## Batch processing
+## Running a .vlurpfile
+
+Pass the file as the operand:
 
 ```sh
-vlurp batch .vlurpfile
-vlurp batch .vlurpfile --dry-run
-vlurp batch .vlurpfile --force
+vlurp ./.vlurpfile
+vlurp ./.vlurpfile --dry-run
+vlurp ./.vlurpfile --force
+vlurp ./skills/kabocha/.vlurpfile
 ```
 
-Entries run sequentially. A failed entry is reported without preventing later entries from running.
+Entries run sequentially. A failed entry is reported without preventing later entries from running. Relative destinations resolve from the current directory, so run a nested `.vlurpfile` from the directory its paths are written for.
+
+Any operand that starts with `.`, `/`, or `~`, or that names an existing file, is a local file. GitHub owners cannot start with those characters, so this never shadows `owner/repo` shorthand. vlurp reads the file to decide what to do: if the first non-blank, non-comment line is a JSON object, the file is lineage and vlurp restores from it (see [Restore from lineage](#restore-from-lineage)); otherwise it runs as a `.vlurpfile`.
+
+`vlurp batch <file>` is an alias that routes the file the same way, so existing scripts keep working.
 
 ## Intent and reality
 
 The `.vlurpfile` records intent: remote identities, selected paths, refs, and local destinations. `.vlurp.jsonl` records reality: the source operand, fetch time, destination-relative paths, and hashes of the bytes written.
 
 Commit both. Review the `.vlurpfile` for what should be copied and lineage for what was copied.
+
+## Restore from lineage
+
+Lineage is also a record of what is safe to fetch. A repository can commit only `.vlurp.jsonl`, gitignore the content beside it, and fetch the content on demand:
+
+```gitignore
+# Keep the lineage; restore the content from it
+references/of-structure/*
+!references/of-structure/.vlurp.jsonl
+```
+
+```sh
+vlurp ./references/of-structure/.vlurp.jsonl            # fetch missing files
+vlurp ./references/of-structure/.vlurp.jsonl --dry-run  # report only; no network
+vlurp ./references/of-structure/.vlurp.jsonl --force    # also replace local edits
+```
+
+Ignore the directory's contents (`dir/*`), not the directory itself (`dir/`). Git cannot re-include `.vlurp.jsonl` when its parent directory is ignored.
+
+Restore does not replay the `.vlurpfile` command. Each record's `files` keys are the layout, and each file's bytes come from whichever file inside the record's PURL selection, at the recorded ref, has the recorded sha256:
+
+- Only the paths listed in the record are written, relative to the directory that holds `.vlurp.jsonl`. Absolute paths, `..` segments, symbolic links, and special files are refused.
+- Every file in every record is fetched and checked before anything is written. If one file no longer matches upstream, nothing is written.
+- A file whose hash already matches is reported `unchanged` and left alone. A file that differs is reported `modified`, and the restore fails unless `--force` is set.
+- An unpinned record (no `@ref`) is fetched from the default branch with a warning; its hashes are still enforced.
+- `.vlurp.jsonl` itself is never written or reformatted.
+
+Only schema 2 lineage, which PURL copies write, can be restored. vlurp rejects older repository-shorthand records and tells you to copy the content again with a `pkg:github/...` source.
 
 ## Pin and upgrade
 
@@ -64,8 +99,8 @@ When one command contains sources from multiple repositories, each source is pin
 ## Recommended review workflow
 
 ```sh
-vlurp batch .vlurpfile --dry-run
-vlurp batch .vlurpfile
+vlurp ./.vlurpfile --dry-run
+vlurp ./.vlurpfile
 vlurp verify ./skills
 vlurp scan ./skills
 git diff -- .vlurpfile skills/.vlurp.jsonl

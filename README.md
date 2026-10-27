@@ -145,7 +145,7 @@ $ vlurp upgrade --dry-run
   1 source, 8 skills (1 new, 1 changed, 6 unchanged)
 ```
 
-## Batch
+## .vlurpfile
 
 Process multiple repos from a `.vlurpfile`:
 
@@ -162,9 +162,37 @@ vlurp obra/superpowers --preset skills -d ./skills --ref e4f5a6b
 vlurp 'pkg:github/microsoft/amplifier@4a5b6c7#**/*.md' ./docs/
 ```
 
+Pass the file as the operand:
+
 ```
-$ vlurp batch .vlurpfile
+$ vlurp ./.vlurpfile
+$ vlurp ./.vlurpfile --dry-run
 ```
+
+`vlurp batch .vlurpfile` is an alias for the same thing.
+
+## Restore from lineage
+
+Every PURL copy writes a `.vlurp.jsonl` that records each file it wrote and the sha256 of its bytes. That record is also a list of what is safe to fetch, so a repository can commit only the lineage and fetch the content on demand:
+
+```gitignore
+# .gitignore: keep the lineage, restore the content
+skills/kabocha/references/of-structure/*
+!skills/kabocha/references/of-structure/.vlurp.jsonl
+```
+
+```
+$ cd skills/kabocha/references/of-structure
+$ vlurp ./.vlurp.jsonl
+Restored 1 file(s) from /src/robertson/skills/kabocha/references/of-structure/.vlurp.jsonl
+  restored     the-elements-of-documentation.md
+```
+
+Restore fetches each record's PURL source at its recorded ref and writes only the paths listed in the record. A file is written only when its bytes match the recorded sha256, and if any file fails that check, nothing is written. Files that already match are left alone. A file you have changed locally stops the restore unless you pass `--force`. `--dry-run` reports what would happen without touching the network. Restore never rewrites `.vlurp.jsonl`.
+
+Only lineage written by PURL copies can be restored; for content fetched with repository shorthand, copy it again with a `pkg:github/...` source first.
+
+vlurp chooses the mode from the file's contents, not its name: if the first non-comment line is a JSON object, the file is restored as lineage; otherwise it runs as a `.vlurpfile`.
 
 ## Commands
 
@@ -173,7 +201,9 @@ vlurp REPOSITORY [options]           Fetch a repository using shorthand
 vlurp REPOSITORY --preset NAME       Fetch using a named selection preset
 vlurp SOURCE... DEST                 Copy precise PURL sources into local files
 vlurp SOURCE... DEST --preset NAME   Copy PURL sources using a preset
-vlurp batch <vlurpfile>              Process a .vlurpfile (batch fetch)
+vlurp ./path/.vlurpfile              Run every command in a .vlurpfile
+vlurp ./path/.vlurp.jsonl            Restore recorded files, enforcing sha256
+vlurp batch <file>                   Alias for vlurp <file>
 vlurp verify <path>                  Check file integrity against lineage
 vlurp pin [source]                   Pin sources to current upstream HEAD
 vlurp outdated [vlurpfile]           Check for upstream changes
@@ -195,8 +225,8 @@ vlurp catalog-diff [old] [new]       Compare catalog snapshots
 --iglob <pattern>     Apply a case-insensitive cp transfer pattern
 --filter <glob>       Add repository-mode selection patterns
 --auto                Detect a suitable repository preset
---dry-run, -n         Preview without writing
---force, -f           Overwrite without prompting
+--dry-run, -n         Preview without writing (restore makes no network calls)
+--force, -f           Overwrite without prompting (restore: replace modified files)
 --json                Machine-readable output (catalog-diff)
 --vlurpfile <path>    Explicit .vlurpfile path (upgrade)
 ```
@@ -208,8 +238,8 @@ PURL operands determine remote sources and local placement. `--preset`, `--glob`
 | Guide | Covers |
 |-------|--------|
 | **[Fetching and Copying](doc/fetch.md)** | Repository shorthand, presets, PURL sources, refs, and cp semantics |
-| **[The .vlurpfile](doc/vlurpfile.md)** | Batch processing, manifest format, intent vs reality |
-| **[Supply Chain Security](doc/supply-chain.md)** | Lineage, verify, pin, scan, threat model |
+| **[The .vlurpfile](doc/vlurpfile.md)** | Running a .vlurpfile, manifest format, intent vs reality |
+| **[Supply Chain Security](doc/supply-chain.md)** | Lineage, restore, verify, pin, scan, threat model |
 | **[Upgrades & Change Detection](doc/upgrade.md)** | outdated, diff, upgrade, catalog, catalog-diff |
 
 ## Data files
@@ -217,11 +247,12 @@ PURL operands determine remote sources and local placement. `--preset`, `--glob`
 ```
 .vlurpfile       Fetch intent. One vlurp command per line. Human-authored.
 .vlurp.jsonl     Lineage. SHA-256 hashes, provenance, scan results. Machine-generated.
+                 Also the allowlist that `vlurp ./path/.vlurp.jsonl` restores from.
 .vlurp.sigstore  Sigstore attestation bundle (optional). Cryptographic proof of fetch.
 catalog.json     Derived skill index. Names, tools, commands, supporting files.
 ```
 
-The `.vlurpfile` is intent -- what you want. The `.vlurp.jsonl` is reality -- what you got. Both are committed to git. Both are reviewed in PRs. Separately.
+The `.vlurpfile` is intent -- what you want. The `.vlurp.jsonl` is reality -- what you got. Both are committed to git. Both are reviewed in PRs. Separately. The fetched content can be committed too, or gitignored and restored from its lineage on demand.
 
 ## Contributing
 
