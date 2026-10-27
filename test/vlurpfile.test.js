@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 import process from 'node:process';
 import { describe, it } from 'node:test';
 import { parseVlurpfile, updateRef, updateRefs } from '../src/vlurpfile.js';
@@ -128,8 +128,16 @@ describe('vlurpfile path resolution', () => {
       { baseDir }
     );
     assert.equal(entry.destination, './references/of-structure/');
-    assert.equal(entry.targetPath, resolve(baseDir, 'references/of-structure'));
+    // The trailing separator survives resolution so DEST/ still names a directory.
+    assert.equal(entry.targetPath, `${resolve(baseDir, 'references/of-structure')}${sep}`);
     assert.equal(entry.rootDir, resolve(baseDir, 'references/of-structure'));
+  });
+
+  it('does not add a separator to a DEST written without one', () => {
+    const [entry] = parseVlurpfile('vlurp pkg:github/user/repo#README.md ./renamed.md', {
+      baseDir
+    });
+    assert.equal(entry.targetPath, resolve(baseDir, 'renamed.md'));
   });
 
   it('resolves legacy -d and --as from baseDir', () => {
@@ -157,7 +165,7 @@ describe('vlurpfile path resolution', () => {
 
   it('defaults baseDir to the current directory', () => {
     const [entry] = parseVlurpfile('vlurp pkg:github/user/repo#docs ./docs/');
-    assert.equal(entry.targetPath, resolve(process.cwd(), 'docs'));
+    assert.equal(entry.targetPath, `${resolve(process.cwd(), 'docs')}${sep}`);
   });
 });
 

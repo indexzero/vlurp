@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import process from 'node:process';
+import { resolveDestination } from './copy-plan.js';
 import { PRESETS } from './presets.js';
 import { parseSourceOperand, replaceSourceRef } from './source-operand.js';
 
@@ -73,7 +74,7 @@ function parseCopyEntry(args, baseDir) {
     source: sources[0],
     sources,
     destination,
-    targetPath: resolve(baseDir, destination),
+    targetPath: resolveDestination(baseDir, destination),
     rootDir: resolve(baseDir, destination),
     filters: [],
     globs: [],

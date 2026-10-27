@@ -105,6 +105,23 @@ describe('copySources', () => {
     assert.equal(verification.filter(result => result.status !== 'ok').length, 0);
   });
 
+  it('creates a missing DEST/ and records lineage inside it', async () => {
+    const references = join(temporaryDirectory, 'references', 'of-structure');
+    const result = await copySources({
+      sources: ['pkg:github/user/repo@abc1234#README.md'],
+      destination: `${references}/`,
+      force: true,
+      fetcher
+    });
+
+    assert.equal(result.status, 'complete');
+    assert.equal(await readFile(join(references, 'README.md'), 'utf8'), 'boilerplate');
+    const records = await readLineage(join(references, '.vlurp.jsonl'));
+    assert.equal(records.length, 1);
+    assert.equal(records[0].destination, '.');
+    assert.deepEqual(Object.keys(records[0].files), ['README.md']);
+  });
+
   it('reuses one materialization for selectors from the same repository and ref', async () => {
     let calls = 0;
     const countingFetcher = {
