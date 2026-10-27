@@ -1,5 +1,11 @@
 # vlurp
 
+## 2.1.1
+
+### Patch Changes
+
+- 52fbc94: Add a `-v` / `--version` flag that prints the installed vlurp version and exits.
+
 ## 2.1.0
 
 ### Minor Changes
