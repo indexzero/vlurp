@@ -17,35 +17,28 @@ jobs:
       id-token: write
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
+        uses: pnpm/action-setup@v6
 
-      - name: Setup Node.js 22.x
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 24.x
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: 'pnpm'
-          registry-url: 'https://registry.npmjs.org'
-
-      # `changeset publish` runs `pnpm publish`, and pnpm delegates the npm
-      # OIDC trusted-publishing token exchange to the npm CLI — which must be
-      # >= 11.5.1. Node 22 ships npm 10.x, so without this the publish goes out
-      # unauthenticated and the registry returns E404.
-      - name: Upgrade npm for OIDC trusted publishing
-        run: npm install -g npm@latest
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      # `changeset publish` runs `pnpm publish`. pnpm 12 publishes without the
+      # npm CLI and does the OIDC trusted-publishing token exchange itself, so
+      # no npm upgrade step is needed here.
       - name: Create Release Pull Request or Publish to npm
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          publish: pnpm changeset publish
+          publish-script: pnpm changeset publish
+          github-token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
+          PNPM_CONFIG_PROVENANCE: true
