@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import process from 'node:process';
 import { render } from 'ink';
 import { jack } from 'jackspeak';
@@ -73,6 +74,10 @@ const j = jack({
       description: 'Show this help message',
       short: 'h'
     },
+    version: {
+      description: 'Print the vlurp version',
+      short: 'v'
+    },
     auto: {
       description: 'Auto-detect repository structure and apply appropriate filters',
       short: 'a'
@@ -95,6 +100,12 @@ const j = jack({
   });
 
 const { values, positionals } = j.parse();
+
+if (values.version) {
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
 
 if (values.help) {
   console.log(`vlurp - A fun CLI tool to quickly fetch GitHub repositories and gists
