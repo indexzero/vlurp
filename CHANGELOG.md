@@ -1,5 +1,15 @@
 # vlurp
 
+## 2.2.0
+
+### Minor Changes
+
+- e3b5f47: Add restore from lineage and make local files a first-class operand. `vlurp ./path/.vlurp.jsonl` fetches the files a lineage records and writes them only when every file's bytes match the recorded sha256. It writes only the recorded paths, writes nothing if any file fails the check, skips files that already match, refuses locally modified files unless `--force`, and never rewrites `.vlurp.jsonl`. This lets a repository commit only lineage and fetch the content on demand. `vlurp ./path/.vlurpfile` runs a manifest, and vlurp picks restore or manifest from the file's contents. The `vlurp batch` subcommand is removed; pass the file directly instead. Relative paths in a `.vlurpfile` now resolve from the file's own directory rather than the current directory, so a nested `.vlurpfile` writes the same files from anywhere. Repository shorthand no longer misreads local paths or JSON lines as `owner/repo`.
+
+### Patch Changes
+
+- c1ebbf0: A copy destination ending in `/` is now always a directory. vlurp creates it if it is missing and places sources beneath it by basename, so `vlurp 'pkg:github/user/repo#guide.md' ./references/docs/` no longer writes a file named `docs` when the directory does not exist yet. The trailing `/` is kept when a `.vlurpfile` resolves its destinations, and a `DEST/` that names an existing file is rejected.
+
 ## 2.1.1
 
 ### Patch Changes
