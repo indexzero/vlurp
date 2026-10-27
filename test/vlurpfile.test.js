@@ -1,4 +1,6 @@
 import { strict as assert } from 'node:assert';
+import { resolve } from 'node:path';
+import process from 'node:process';
 import { describe, it } from 'node:test';
 import { parseVlurpfile, updateRef, updateRefs } from '../src/vlurpfile.js';
 
@@ -114,6 +116,48 @@ vlurp user/repo -d ./vlurp
     assert.equal(entries[2].preset, 'skills');
     assert.equal(entries[2].ref, 'abc1234');
     assert.equal(entries[3].ref, null);
+  });
+});
+
+describe('vlurpfile path resolution', () => {
+  const baseDir = resolve('/repo/skills/kabocha');
+
+  it('resolves a cp destination from baseDir and keeps the written form', () => {
+    const [entry] = parseVlurpfile(
+      "vlurp 'pkg:github/indexzero/of-structure@d158c8c#bundle/doc.md' ./references/of-structure/",
+      { baseDir }
+    );
+    assert.equal(entry.destination, './references/of-structure/');
+    assert.equal(entry.targetPath, resolve(baseDir, 'references/of-structure'));
+    assert.equal(entry.rootDir, resolve(baseDir, 'references/of-structure'));
+  });
+
+  it('resolves legacy -d and --as from baseDir', () => {
+    const entries = parseVlurpfile(
+      'vlurp dcramer/dex -d ./skills --as dex\nvlurp user/repo -d ./vlurp\nvlurp user/repo --as solo',
+      { baseDir }
+    );
+    assert.equal(entries[0].targetPath, resolve(baseDir, 'skills', 'dex'));
+    assert.equal(entries[1].targetPath, resolve(baseDir, 'vlurp', 'user', 'repo'));
+    assert.equal(entries[1].rootDir, resolve(baseDir, 'vlurp'));
+    assert.equal(entries[2].targetPath, resolve(baseDir, 'solo'));
+  });
+
+  it('roots a legacy entry without -d at baseDir', () => {
+    const [entry] = parseVlurpfile('vlurp user/repo', { baseDir });
+    assert.equal(entry.rootDir, baseDir);
+    assert.equal(entry.targetPath, undefined);
+  });
+
+  it('leaves absolute destinations alone', () => {
+    const absolute = resolve('/elsewhere/docs');
+    const [entry] = parseVlurpfile(`vlurp pkg:github/user/repo#docs ${absolute}`, { baseDir });
+    assert.equal(entry.targetPath, absolute);
+  });
+
+  it('defaults baseDir to the current directory', () => {
+    const [entry] = parseVlurpfile('vlurp pkg:github/user/repo#docs ./docs/');
+    assert.equal(entry.targetPath, resolve(process.cwd(), 'docs'));
   });
 });
 

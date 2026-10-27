@@ -34,10 +34,16 @@ export class Parser {
       };
     }
 
-    // If not a URL, try user/repo format
+    // If not a URL, try user/repo format. hosted-git-info accepts almost any
+    // "a/b" string here (a local path or a JSON line included), so require a
+    // real GitHub owner and repository name before trusting the result.
     if (!source.includes('://') && source.includes('/')) {
       const shorthandInfo = hostedGitInfo.fromUrl(`github:${source}`);
-      if (shorthandInfo) {
+      if (
+        shorthandInfo &&
+        isGitHubOwner(shorthandInfo.user) &&
+        isGitHubRepositoryName(shorthandInfo.project)
+      ) {
         const tarballUrl = ref
           ? `https://api.github.com/repos/${shorthandInfo.user}/${shorthandInfo.project}/tarball/${ref}`
           : shorthandInfo.tarball();
@@ -54,6 +60,15 @@ export class Parser {
 
     throw new Error('Invalid input format. Use "user/repo" or a GitHub/Gist URL');
   }
+}
+
+// GitHub owners: alphanumerics and single hyphens, no leading or trailing hyphen.
+function isGitHubOwner(owner) {
+  return typeof owner === 'string' && /^[a-z\d]+(?:-[a-z\d]+)*$/i.test(owner);
+}
+
+function isGitHubRepositoryName(name) {
+  return typeof name === 'string' && /^[\w.-]+$/.test(name) && name !== '.' && name !== '..';
 }
 
 export function parseSource(source, options = {}) {

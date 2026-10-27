@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import React, { useEffect, useState } from 'react';
@@ -24,7 +24,7 @@ export function OutdatedCommand({ vlurpfilePath }) {
         }
 
         const content = await readFile(filePath, 'utf8');
-        const entries = parseVlurpfile(content);
+        const entries = parseVlurpfile(content, { baseDir: dirname(filePath) });
 
         if (entries.length === 0) {
           setError('No entries found in vlurpfile');

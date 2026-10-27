@@ -81,7 +81,7 @@ vlurp upgrade --vlurpfile .vlurpfile.skills
 
 For cp-style entries, repository refs live inside each PURL source. Upgrade groups selectors by repository, fetches the new commit through the same copy planner, and rewrites `@ref` without changing `#subpath`, quoting, or the destination.
 
-The fetch pipeline is the same one used by `vlurp fetch` and `vlurp batch`. Upgraded content gets hashed, lineage gets written, scans run. No shortcuts.
+The fetch pipeline is the same one used by `vlurp SOURCE... DEST` and `vlurp ./path/.vlurpfile`. Upgraded content gets hashed, lineage gets written, scans run. No shortcuts.
 
 ### Dry run
 

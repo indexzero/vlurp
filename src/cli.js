@@ -11,9 +11,11 @@ import { DiffCommand } from './commands/diff.js';
 import { FetchCommand } from './commands/fetch.js';
 import { OutdatedCommand } from './commands/outdated.js';
 import { PinCommand } from './commands/pin.js';
+import { RestoreCommand } from './commands/restore.js';
 import { ScanCommand } from './commands/scan.js';
 import { UpgradeCommand } from './commands/upgrade.js';
 import { VerifyCommand } from './commands/verify.js';
+import { isPathLikeOperand, readLocalFileOperand } from './local-file.js';
 import { PRESETS } from './presets.js';
 
 const DEFAULT_FILTERS = [
@@ -32,7 +34,7 @@ const DEFAULT_FILTERS = [
 
 const j = jack({
   usage:
-    'vlurp REPOSITORY [options]\n       vlurp SOURCE... DEST [options]\n       vlurp COMMAND [arguments] [options]'
+    'vlurp REPOSITORY [options]\n       vlurp SOURCE... DEST [options]\n       vlurp ./path/.vlurpfile | ./path/.vlurp.jsonl [options]\n       vlurp COMMAND [arguments] [options]'
 })
   .description('A fun CLI tool to quickly fetch GitHub repositories and gists')
   .opt({
@@ -91,7 +93,8 @@ const j = jack({
       short: 'q'
     },
     force: {
-      description: 'Force overwrite existing directories without prompting',
+      description:
+        'Overwrite existing files without prompting (restore: replace locally modified files)',
       short: 'f'
     },
     json: {
@@ -111,17 +114,18 @@ if (values.help) {
   console.log(`vlurp - A fun CLI tool to quickly fetch GitHub repositories and gists
 
 Commands:
-  vlurp <repo> [options]  Fetch a repository using shorthand
-  vlurp <source>... <dest> Copy precise PURL sources with cp semantics
-  vlurp batch <file>      Process a .vlurpfile
-  vlurp upgrade [source]  Upgrade outdated sources to upstream HEAD
-  vlurp verify <path>     Verify file integrity against lineage records
-  vlurp pin [source]      Pin unpinned sources to current upstream HEAD
-  vlurp outdated [file]   Check for upstream changes
-  vlurp diff <source>     Show content diff against upstream
-  vlurp scan <path>       Analyze content for injection/escalation patterns
-  vlurp catalog <path>    Generate catalog.json of indexed skills
-  vlurp catalog-diff      Compare two catalog snapshots
+  vlurp <repo> [options]     Fetch a repository using shorthand
+  vlurp <source>... <dest>   Copy precise PURL sources with cp semantics
+  vlurp ./path/.vlurpfile    Run every command in a .vlurpfile
+  vlurp ./path/.vlurp.jsonl  Restore recorded files, enforcing every sha256
+  vlurp upgrade [source]     Upgrade outdated sources to upstream HEAD
+  vlurp verify <path>        Verify file integrity against lineage records
+  vlurp pin [source]         Pin unpinned sources to current upstream HEAD
+  vlurp outdated [file]      Check for upstream changes
+  vlurp diff <source>        Show content diff against upstream
+  vlurp scan <path>          Analyze content for injection/escalation patterns
+  vlurp catalog <path>       Generate catalog.json of indexed skills
+  vlurp catalog-diff         Compare two catalog snapshots
 
 Usage:
   vlurp <owner>/<repository>                    Fetch useful text files
@@ -133,13 +137,23 @@ Usage:
   vlurp SOURCE SOURCE... DEST                   Copy multiple remote sources
   vlurp SOURCE DEST --glob '**/*.md'            Copy files matching a pattern
   vlurp SOURCE DEST --iglob '**/skill.md'       Match a pattern without case
+  vlurp ./path/.vlurpfile                       Run a .vlurpfile
+  vlurp ./path/.vlurp.jsonl                     Restore files recorded in lineage
+
+Local files:
+  A path operand (starting with ., /, or ~, or naming an existing file) is
+  routed by its content. JSON lines restore from lineage; anything else runs
+  as a .vlurpfile, whose relative paths resolve from the directory it lives
+  in. Restore fetches each record's source, writes only the
+  recorded paths, and writes nothing unless every sha256 matches. It skips
+  files that already match, refuses locally modified files unless --force,
+  and never rewrites .vlurp.jsonl.
 
 Repository preset and filter mode:
   vlurp <user>/<repo>                           Fetch to ./<user>/<repo>
   vlurp <user>/<repo> --ref <sha>               Fetch pinned to commit
   vlurp <user>/<repo> --as <name> -d ./skills   Fetch to ./skills/<name>
   vlurp <url> -d <root>                         Fetch to <root>/<user>/<repo>
-  vlurp batch <vlurpfile>                       Process batch file
   vlurp upgrade                                 Upgrade all outdated sources
   vlurp upgrade user/repo                       Upgrade specific source
   vlurp verify ./skills                         Check files against .vlurp.jsonl
@@ -162,8 +176,11 @@ Examples:
   vlurp 'pkg:github/anthropics/skills@main#skills/pdf' ./skills/
   vlurp 'pkg:github/mattpocock/skills#skills' ./skills/ --preset skills
   vlurp 'pkg:github/user/repo#docs' ./docs/ --glob '**/*.md' --glob '!README.md'
-  vlurp batch .vlurpfile                  Process batch file
-  vlurp batch .vlurpfile --dry-run        Preview batch operations
+  vlurp ./.vlurpfile                      Run a .vlurpfile
+  vlurp ./.vlurpfile --dry-run            Preview .vlurpfile operations
+  vlurp ./skills/.vlurp.jsonl             Restore files from lineage
+  vlurp ./skills/.vlurp.jsonl --dry-run   Preview a restore without network
+  vlurp ./skills/.vlurp.jsonl --force     Replace locally modified files
   vlurp upgrade                           Upgrade all outdated
   vlurp upgrade user/repo                 Upgrade specific source
   vlurp upgrade --dry-run                 Preview upgrades
@@ -209,28 +226,53 @@ if (preset && !PRESETS[preset]) {
   process.exit(1);
 }
 
-// Handle subcommands
-switch (command) {
-  case 'batch': {
-    const vlurpfile = positionals[1];
-    if (!vlurpfile) {
-      console.error('Error: batch command requires a .vlurpfile path');
-      console.error('Usage: vlurp batch <vlurpfile>');
+/**
+ * Run a local file operand: lineage (.vlurp.jsonl) restores, anything else
+ * runs as a .vlurpfile. The file's content decides, not its name.
+ */
+function runLocalFile(operand) {
+  let local;
+  try {
+    local = readLocalFileOperand(operand);
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    process.exit(1);
+  }
+
+  if (local.kind === 'lineage') {
+    const unsupported = [
+      rootDir && '-d',
+      values.filter?.length > 0 && '--filter',
+      ref && '--ref',
+      asName && '--as',
+      auto && '--auto',
+      preset && '--preset',
+      values.glob?.length > 0 && '--glob',
+      values.iglob?.length > 0 && '--iglob'
+    ].filter(Boolean);
+    if (unsupported.length > 0) {
+      console.error(
+        `Error: ${unsupported.join(', ')} cannot be used when restoring from .vlurp.jsonl; each lineage record fixes its source, ref, and files`
+      );
       process.exit(1);
     }
 
-    render(
-      React.createElement(BatchCommand, {
-        vlurpfile,
-        dryRun,
-        force,
-        quiet
-      })
-    );
-
-    break;
+    render(React.createElement(RestoreCommand, { lineagePath: local.path, force, dryRun, quiet }));
+    return;
   }
 
+  render(
+    React.createElement(BatchCommand, {
+      vlurpfile: local.path,
+      dryRun,
+      force,
+      quiet
+    })
+  );
+}
+
+// Handle subcommands
+switch (command) {
   case 'verify': {
     const targetPath = positionals[1] || '.';
     render(React.createElement(VerifyCommand, { targetPath }));
@@ -343,6 +385,20 @@ switch (command) {
           preset
         })
       );
+      break;
+    }
+
+    // Local files: GitHub owners cannot start with ".", "/", or "~", so a
+    // path-like operand never shadows repository shorthand.
+    if (isPathLikeOperand(command)) {
+      if (positionals.length > 1) {
+        console.error(
+          `Error: expected a single .vlurpfile or .vlurp.jsonl path, got ${positionals.length} operands`
+        );
+        process.exit(1);
+      }
+
+      runLocalFile(command);
       break;
     }
 

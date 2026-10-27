@@ -153,6 +153,46 @@ export async function readLineage(jsonlPath) {
 }
 
 /**
+ * Parse .vlurp.jsonl content strictly. Unlike readLineage, which tolerates
+ * damaged lines for read-only reporting, a line that is not a JSON object is
+ * an error here. Blank lines and lines starting with # are skipped.
+ * Returns [{ line, record }] with 1-based line numbers.
+ */
+export function parseLineageStrict(content, { path = '.vlurp.jsonl' } = {}) {
+  const records = [];
+  for (const [index, text] of content.split('\n').entries()) {
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+
+    let record;
+    try {
+      record = JSON.parse(trimmed);
+    } catch (error) {
+      throw new Error(`${path}:${index + 1}: malformed lineage record: ${error.message}`);
+    }
+
+    if (!record || typeof record !== 'object' || Array.isArray(record)) {
+      throw new Error(`${path}:${index + 1}: malformed lineage record: expected a JSON object`);
+    }
+
+    records.push({ line: index + 1, record });
+  }
+
+  return records;
+}
+
+/**
+ * Read all lineage records from a .vlurp.jsonl file, failing on any malformed
+ * line or a missing file.
+ */
+export async function readLineageStrict(jsonlPath) {
+  const content = await readFile(jsonlPath, 'utf8');
+  return parseLineageStrict(content, { path: jsonlPath });
+}
+
+/**
  * Verify files on disk against lineage records.
  * Returns an array of {file, status, expected, actual} objects.
  */

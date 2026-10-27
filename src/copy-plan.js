@@ -320,18 +320,23 @@ async function validateTransferTargets(targetRoot, transferFiles) {
   }
 }
 
-function assertSafeRelativePath(path) {
-  if (isAbsolute(path) || path.startsWith('\\')) {
-    throw new Error(`Unsafe repository subpath: ${path}`);
+export function assertSafeRelativePath(path, label = 'repository subpath') {
+  if (
+    typeof path !== 'string' ||
+    isAbsolute(path) ||
+    path.startsWith('\\') ||
+    path.includes('\0')
+  ) {
+    throw new Error(`Unsafe ${label}: ${path}`);
   }
 
   const segments = path.split('/');
   if (segments.some(segment => segment === '..' || segment === '.' || segment === '')) {
-    throw new Error(`Unsafe repository subpath: ${path}`);
+    throw new Error(`Unsafe ${label}: ${path}`);
   }
 }
 
-function assertContained(root, path, { allowRoot = true } = {}) {
+export function assertContained(root, path, { allowRoot = true } = {}) {
   const rel = relative(resolve(root), resolve(path));
   if ((!allowRoot && rel === '') || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
     throw new Error(`Unsafe path escapes destination or repository root: ${path}`);
@@ -342,7 +347,7 @@ function normalizeRelative(path) {
   return path.replaceAll('\\', '/').replace(/\/$/, '');
 }
 
-async function optionalLstat(path) {
+export async function optionalLstat(path) {
   try {
     return await lstat(path);
   } catch (error) {
