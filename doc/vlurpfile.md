@@ -40,8 +40,6 @@ Entries run sequentially. A failed entry is reported without preventing later en
 
 Any operand that starts with `.`, `/`, or `~`, or that names an existing file, is a local file. GitHub owners cannot start with those characters, so this never shadows `owner/repo` shorthand. vlurp reads the file to decide what to do: if the first non-blank, non-comment line is a JSON object, the file is lineage and vlurp restores from it (see [Restore from lineage](#restore-from-lineage)); otherwise it runs as a `.vlurpfile`.
 
-`vlurp batch <file>` is an alias that routes the file the same way, so existing scripts keep working.
-
 ## Intent and reality
 
 The `.vlurpfile` records intent: remote identities, selected paths, refs, and local destinations. `.vlurp.jsonl` records reality: the source operand, fetch time, destination-relative paths, and hashes of the bytes written.

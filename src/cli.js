@@ -118,7 +118,6 @@ Commands:
   vlurp <source>... <dest>   Copy precise PURL sources with cp semantics
   vlurp ./path/.vlurpfile    Run every command in a .vlurpfile
   vlurp ./path/.vlurp.jsonl  Restore recorded files, enforcing every sha256
-  vlurp batch <file>         Alias for vlurp <file>
   vlurp upgrade [source]     Upgrade outdated sources to upstream HEAD
   vlurp verify <path>        Verify file integrity against lineage records
   vlurp pin [source]         Pin unpinned sources to current upstream HEAD
@@ -178,7 +177,6 @@ Examples:
   vlurp 'pkg:github/user/repo#docs' ./docs/ --glob '**/*.md' --glob '!README.md'
   vlurp ./.vlurpfile                      Run a .vlurpfile
   vlurp ./.vlurpfile --dry-run            Preview .vlurpfile operations
-  vlurp batch .vlurpfile                  Same as vlurp ./.vlurpfile
   vlurp ./skills/.vlurp.jsonl             Restore files from lineage
   vlurp ./skills/.vlurp.jsonl --dry-run   Preview a restore without network
   vlurp ./skills/.vlurp.jsonl --force     Replace locally modified files
@@ -274,18 +272,6 @@ function runLocalFile(operand) {
 
 // Handle subcommands
 switch (command) {
-  case 'batch': {
-    const file = positionals[1];
-    if (!file) {
-      console.error('Error: batch command requires a .vlurpfile or .vlurp.jsonl path');
-      console.error('Usage: vlurp batch <file> (same as vlurp ./path/.vlurpfile)');
-      process.exit(1);
-    }
-
-    runLocalFile(file);
-    break;
-  }
-
   case 'verify': {
     const targetPath = positionals[1] || '.';
     render(React.createElement(VerifyCommand, { targetPath }));

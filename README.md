@@ -169,8 +169,6 @@ $ vlurp ./.vlurpfile
 $ vlurp ./.vlurpfile --dry-run
 ```
 
-`vlurp batch .vlurpfile` is an alias for the same thing.
-
 ## Restore from lineage
 
 Every PURL copy writes a `.vlurp.jsonl` that records each file it wrote and the sha256 of its bytes. That record is also a list of what is safe to fetch, so a repository can commit only the lineage and fetch the content on demand:
@@ -203,7 +201,6 @@ vlurp SOURCE... DEST                 Copy precise PURL sources into local files
 vlurp SOURCE... DEST --preset NAME   Copy PURL sources using a preset
 vlurp ./path/.vlurpfile              Run every command in a .vlurpfile
 vlurp ./path/.vlurp.jsonl            Restore recorded files, enforcing sha256
-vlurp batch <file>                   Alias for vlurp <file>
 vlurp verify <path>                  Check file integrity against lineage
 vlurp pin [source]                   Pin sources to current upstream HEAD
 vlurp outdated [vlurpfile]           Check for upstream changes

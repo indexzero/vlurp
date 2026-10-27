@@ -80,11 +80,11 @@ describe('CLI', () => {
     );
   });
 
-  it('leads with local file operands and documents batch as an alias', () => {
+  it('leads with local file operands and no longer lists batch', () => {
     const output = execSync(`node ${binPath} --help`, { encoding: 'utf8' });
     assert.ok(output.includes('vlurp ./path/.vlurpfile'));
     assert.ok(output.includes('vlurp ./path/.vlurp.jsonl'));
-    assert.match(output, /vlurp batch <file>\s+Alias for vlurp <file>/);
+    assert.doesNotMatch(output, /vlurp batch/);
   });
 });
 
@@ -140,7 +140,7 @@ describe('CLI local file operands', () => {
     await rm(workspace, { recursive: true, force: true });
   });
 
-  it('runs a .vlurpfile operand as a batch', () => {
+  it('runs a .vlurpfile operand', () => {
     const result = runVlurp(['./x/.vlurpfile', '--dry-run']);
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Dry run - would process 1 entries/);
@@ -154,13 +154,6 @@ describe('CLI local file operands', () => {
     assert.match(result.stdout, /fetch\s+missing\.md \(missing\)/);
     assert.match(result.stdout, /unchanged\s+present\.md/);
     assert.equal(await readFile(join(workspace, 'x', '.vlurp.jsonl'), 'utf8'), lineageContent);
-  });
-
-  it('routes batch by content so batch .vlurp.jsonl restores', () => {
-    const result = runVlurp(['batch', './x/.vlurp.jsonl', '--dry-run']);
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /Dry run - restore 2 file\(s\)/);
-    assert.doesNotMatch(result.stdout, /paths\[1\]/);
   });
 
   it('exits non-zero when a dry run finds a locally modified file', async () => {
